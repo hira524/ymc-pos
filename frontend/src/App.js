@@ -1,4 +1,3 @@
-// App.js
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { loadStripeTerminal } from '@stripe/terminal-js';
@@ -11,48 +10,57 @@ import './pos.css';
 
 function App() {
   const [inventory, setInventory] = useState([]);
-  const [search, setSearch]     = useState('');
-  const [cart, setCart]         = useState([]);
-  const [total, setTotal]       = useState(0);
+  const [search, setSearch] = useState('');
+  const [cart, setCart] = useState([]);
+  const [total, setTotal] = useState(0);
   const [terminal, setTerminal] = useState(null);
-  const [reader, setReader]     = useState(null);
+  const [reader, setReader] = useState(null);
 
   useEffect(() => {
     // 1) Fetch inventory
     axios.get('http://localhost:5000/inventory')
       .then(r => setInventory(r.data))
-      .catch(e => console.error('Inventory fetch error:', e.response?.data||e.message));
+      .catch(e => console.error('Inventory fetch error:', e.response?.data || e.message));
 
-    // 2) Init Stripe Terminal
+    // 2) Init Stripe Terminal with simulated mode
     loadStripeTerminal().then(StripeTerminal => {
       const term = StripeTerminal.create({
         onFetchConnectionToken: async () => {
-          const r = await axios.post('http://localhost:5000/connection_token');
-          return r.data.secret;
+          try {
+            const r = await axios.post('http://localhost:5000/connection_token');
+            return r.data.secret;
+          } catch (error) {
+            console.error('Connection token error:', error.response?.data || error.message);
+            alert('❌ Stripe key error: ' + (error.response?.data?.error || error.message));
+            throw error;
+          }
         },
         onUnexpectedReaderDisconnect: () => alert('⚠️ Reader disconnected')
       });
       setTerminal(term);
 
-      // **Try real first, then fallback to simulated**
+      // Use simulated mode for testing with test keys
+      // For production with live keys, change simulated to false and connect real hardware
       term.discoverReaders({ simulated: false })
         .then(({ discoveredReaders, error }) => {
           if (error) {
-            console.warn('Real discover failed:', error.message);
-            return term.discoverReaders({ simulated: true });
+            console.error('Discover readers error:', error);
+            return alert('Discover failed: ' + error.message);
           }
-          return { discoveredReaders, error:null };
-        })
-        .then(({ discoveredReaders, error }) => {
-          if (error) return alert('Discover failed: ' + error.message);
-          if (discoveredReaders.length === 0) return alert('No readers found');
-          // pick first
+          if (discoveredReaders.length === 0) return alert('No simulated readers found');
+          // Connect to the first simulated reader
           return term.connectReader(discoveredReaders[0]);
         })
         .then(({ reader, error }) => {
-          if (error) return alert('Connect reader failed: ' + error.message);
+          if (error) {
+            console.error('Connect reader error:', error);
+            return alert('Connect reader failed: ' + error.message);
+          }
           setReader(reader);
-          console.log('✅ Connected to Stripe reader:', reader.id);
+          console.log('✅ Connected to simulated Stripe reader:', reader.id);
+        })
+        .catch(error => {
+          console.error('Stripe Terminal initialization error:', error);
         });
     });
   }, []);
@@ -91,17 +99,17 @@ function App() {
   const complete = async method => {
     // 1) Update inventory
     await axios.post('http://localhost:5000/update-inventory', { cart })
-      .catch(e => console.error('Update inv error:', e.response?.data||e.message));
+      .catch(e => console.error('Update inv error:', e.response?.data || e.message));
     // 2) Log payment
     await axios.post('http://localhost:5000/log-payment', {
       items: cart,
       total,
       method
-    }).catch(e => console.error('Log payment error:', e.response?.data||e.message));
+    }).catch(e => console.error('Log payment error:', e.response?.data || e.message));
 
     setCart([]);
     setTotal(0);
-    alert('✅ Transaction complete ('+method+')');
+    alert('✅ Transaction complete (' + method + ')');
   };
 
   const checkout = async method => {
@@ -110,18 +118,30 @@ function App() {
 
     if (!terminal || !reader) return alert('No Stripe reader connected');
     const amount = Math.round(total * 100);
-    const { data:{ client_secret }, error: piErr } = await axios.post('http://localhost:5000/create_payment_intent',{ amount })
-      .then(r=>({ data:r.data }))
-      .catch(e=>({ error:e.response?.data||e.message }));
-    if (piErr) return alert('PI error: ' + JSON.stringify(piErr));
+    
+    try {
+      // Create payment intent
+      const response = await axios.post('http://localhost:5000/create_payment_intent', { amount });
+      const { client_secret } = response.data;
+      
+      if (!client_secret) {
+        return alert('Failed to create payment intent: No client secret received');
+      }
 
-    const { error: collectErr, paymentIntent } = await terminal.collectPaymentMethod({ payment_intent: client_secret });
-    if (collectErr) return alert('Collect err: ' + collectErr.message);
+      // Collect payment method
+      const { error: collectErr, paymentIntent } = await terminal.collectPaymentMethod(client_secret);
+      if (collectErr) return alert('Collect error: ' + collectErr.message);
 
-    const { error: processErr } = await terminal.processPayment(paymentIntent);
-    if (processErr) return alert('Process err: ' + processErr.message);
+      // Process payment
+      const { error: processErr } = await terminal.processPayment(paymentIntent);
+      if (processErr) return alert('Process error: ' + processErr.message);
 
-    complete('card');
+      complete('card');
+    } catch (error) {
+      console.error('Payment error:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Unknown payment error';
+      alert('Payment failed: ' + errorMessage);
+    }
   };
 
   return (
@@ -253,7 +273,6 @@ function App() {
                 <span className={`status-dot ${reader ? '' : 'error'}`}></span>
                 {reader ? 'Card Reader Connected' : 'Card Reader Disconnected'}
               </div>
-          
             </div>
           </div>
         </aside>
