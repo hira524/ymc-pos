@@ -1,0 +1,193 @@
+/* Global Variables - New Color Palette */
+:root {
+  /* Primary palette from image */
+  --primary-color: #2c586e;          /* Main dark teal */
+  --primary-light: #8da1af;          /* Soft blue-gray */
+  --primary-dark: #2b576d;           /* Deep teal */
+  --secondary-color: #dd9f52;        /* Warm orange */
+  --secondary-light: #dcc894;        /* Soft gold */
+  --accent-color: #dd9f52;           /* Warm orange accent */
+  --danger-color: #dc3545;           /* Keep red for errors */
+  --warning-color: #dd9f52;          /* Use warm orange for warnings */
+  --success-color: #28a745;          /* Keep green for success */
+  
+  /* Theme-aware colors (Light theme defaults) */
+  --background-primary: #ffffff;
+  --background-secondary: #bed0db;    /* Light blue-gray */
+  --background-tertiary: #8da1af;    /* Soft blue-gray */
+  
+  --text-primary: #2b576d;           /* Deep teal for main text */
+  --text-secondary: #2c586e;         /* Dark teal for secondary */
+  --text-muted: #8da1af;             /* Soft blue-gray for muted */
+  
+  --border-color: #bed0db;           /* Light blue-gray */
+  --border-light: #bed0db;           /* Light blue-gray */
+  --border-dark: #8da1af;            /* Soft blue-gray */
+  
+  /* Updated gray scale using new palette colors */
+  --gray-50: #ffffff;
+  --gray-100: #bed0db;              /* Light blue-gray */
+  --gray-200: #8da1af;              /* Soft blue-gray */
+  --gray-300: #7a94a3;              /* Medium blue-gray */
+  --gray-400: #6b8a98;              /* Muted blue-gray */
+  --gray-500: #2c586e;              /* Dark teal */
+  --gray-600: #2b576d;              /* Deep teal */
+  --gray-700: #244a5c;              /* Darker teal */
+  --gray-800: #1a3d4a;              /* Very dark teal */
+  --gray-900: #0f2a35;              /* Almost black teal */
+  
+  /* Updated shadows using new palette colors */
+  --shadow-sm: 0 1px 2px 0 rgba(44, 88, 110, 0.05);
+  --shadow: 0 1px 3px 0 rgba(44, 88, 110, 0.1), 0 1px 2px -1px rgba(44, 88, 110, 0.1);
+  --shadow-md: 0 4px 6px -1px rgba(44, 88, 110, 0.1), 0 2px 4px -2px rgba(44, 88, 110, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(44, 88, 110, 0.1), 0 4px 6px -4px rgba(44, 88, 110, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(44, 88, 110, 0.1), 0 8px 10px -6px rgba(44, 88, 110, 0.1);
+  
+  --border-radius: 8px;
+  --border-radius-sm: 4px;
+  --border-radius-lg: 12px;
+  --border-radius-xl: 16px;
+  
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
+  
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-3: 0.75rem;
+  --spacing-4: 1rem;
+  --spacing-5: 1.25rem;
+  --spacing-6: 1.5rem;
+  --spacing-8: 2rem;
+  --spacing-10: 2.5rem;
+  --spacing-12: 3rem;
+  --spacing-16: 4rem;
+  --spacing-20: 5rem;
+}
+
+/* Reset and Base Styles */
+* {
+  box-sizing: border-box;
+}
+
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  line-height: 1.15;
+  -webkit-text-size-adjust: 100;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--background-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  font-size: var(--font-size-base);
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  margin: 0 0 var(--spacing-4) 0;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+h1 { font-size: var(--font-size-3xl); }
+h2 { font-size: var(--font-size-2xl); }
+h3 { font-size: var(--font-size-xl); }
+h4 { font-size: var(--font-size-lg); }
+h5 { font-size: var(--font-size-base); }
+h6 { font-size: var(--font-size-sm); }
+
+p {
+  margin: 0 0 var(--spacing-4) 0;
+  line-height: 1.6;
+}
+
+/* Code styles */
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+  background-color: var(--background-tertiary);
+  color: var(--text-primary);
+  padding: var(--spacing-1) var(--spacing-2);
+  border-radius: var(--border-radius-sm);
+  font-size: 0.875em;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+}
+
+pre {
+  background-color: var(--background-tertiary);
+  color: var(--text-primary);
+  padding: var(--spacing-4);
+  border-radius: var(--border-radius);
+  overflow-x: auto;
+  margin: var(--spacing-4) 0;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background-tertiary);
+  border-radius: var(--border-radius);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: var(--border-radius);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Selection */
+::selection {
+  background-color: var(--primary-light);
+  color: white;
+}
+
+::-moz-selection {
+  background-color: var(--primary-light);
+  color: white;
+}
+
+/* Focus styles */
+*:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

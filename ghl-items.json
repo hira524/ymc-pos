@@ -1,0 +1,80 @@
+[
+  {
+    "name": "250 ml Bottled Water",
+    "productId": "6894258913cf3d0255c3fdb4",
+    "priceId": "6894258a13cf3d1b5ac3fdb8",
+    "price": 1
+  },
+  {
+    "name": "250ml Pop Top - Apple & Blackcurrant",
+    "productId": "6894258c4aff83a1bf3cfa56",
+    "priceId": "6894258c13cf3dc342c3fdbd",
+    "price": 2.5
+  },
+  {
+    "name": "250ml Pop Top - Apple",
+    "productId": "6894258f4aff833aac3cfa58",
+    "priceId": "6894258f4aff83bf1a3cfa5a",
+    "price": 2.5
+  },
+  {
+    "name": "250ml Soft Drink Can - Sprite",
+    "productId": "6894259113cf3d00e7c3fdc0",
+    "priceId": "68942592574f4c496971be79",
+    "price": 2
+  },
+  {
+    "name": "250ml Soft Drink Can - Coke",
+    "productId": "68942594574f4ccbbb71be7c",
+    "priceId": "6894259513cf3d114dc3fdc2",
+    "price": 2
+  },
+  {
+    "name": "250ml Soft Drink Can - Coke Zero",
+    "productId": "68942597574f4c3b1f71be7e",
+    "priceId": "68942597574f4ca81b71be80",
+    "price": 2
+  },
+  {
+    "name": "250ml Soft Drink Can - Fanta",
+    "productId": "6894259a4aff833ad53cfa61",
+    "priceId": "6894259a13cf3d67efc3fdc5",
+    "price": 2
+  },
+  {
+    "name": "Slushie 12 oz - Coke",
+    "productId": "6894259c4aff83ae2d3cfa63",
+    "priceId": "6894259d862c0c3c2b964b8c",
+    "price": 2.5
+  },
+  {
+    "name": "Slushie 12 oz - Berry Blast",
+    "productId": "6894259f862c0c2d99964b8f",
+    "priceId": "689425a0574f4cb25a71be8b",
+    "price": 2.5
+  },
+  {
+    "name": "Slushie 12 oz - Mixed",
+    "productId": "689425a24aff830b0e3cfa65",
+    "priceId": "689425a2862c0cbb1d964b95",
+    "price": 2.5
+  },
+  {
+    "name": "Slushie 16 oz - Coke",
+    "productId": "689425a54aff830f393cfa67",
+    "priceId": "689425a5574f4c17ef71be8f",
+    "price": 4.5
+  },
+  {
+    "name": "Slushie 16 oz - Berry Blast",
+    "productId": "689425a7574f4c209871be98",
+    "priceId": "689425a8574f4c397471be9a",
+    "price": 4.5
+  },
+  {
+    "name": "Slushie 16 oz - Mixed",
+    "productId": "689425aa862c0c4082964b9c",
+    "priceId": "689425ab862c0c6300964b9e",
+    "price": 4.5
+  }
+]

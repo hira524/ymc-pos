@@ -1,0 +1,392 @@
+/* =======================
+   YMC POS Theme Configuration - New Color Palette
+   ======================= */
+
+/* Light Theme (Default) */
+:root,
+[data-theme="light"] {
+  /* Primary palette from image */
+  --primary-color: #2c586e;          /* Main dark teal */
+  --primary-light: #8da1af;          /* Soft blue-gray */
+  --primary-dark: #2b576d;           /* Deep teal */
+  --secondary-color: #dd9f52;        /* Warm orange */
+  --secondary-light: #dcc894;        /* Soft gold */
+  --accent-color: #dd9f52;           /* Warm orange accent */
+  --danger-color: #dc3545;           /* Keep red for errors */
+  --warning-color: #dd9f52;          /* Use warm orange for warnings */
+  --success-color: #28a745;          /* Keep green for success */
+  
+  /* Backgrounds using new palette */
+  --background-primary: #ffffff;
+  --background-secondary: #bed0db;    /* Light blue-gray */
+  --background-tertiary: #8da1af;    /* Soft blue-gray */
+  
+  /* Text colors with new palette */
+  --text-primary: #2b576d;           /* Deep teal for main text */
+  --text-secondary: #2c586e;         /* Dark teal for secondary */
+  --text-muted: #8da1af;             /* Soft blue-gray for muted */
+  
+  /* Borders using new palette */
+  --border-color: #bed0db;           /* Light blue-gray */
+  --border-light: #bed0db;           /* Light blue-gray */
+  --border-dark: #8da1af;            /* Soft blue-gray */
+  
+  /* Card and hover effects */
+  --card-background: #ffffff;
+  --card-shadow: 0 4px 6px rgba(44, 88, 110, 0.1);
+  --hover-background: #bed0db;       /* Light blue-gray */
+  --hover-shadow: 0 8px 15px rgba(44, 88, 110, 0.15);
+}
+
+/* Dark Theme */
+[data-theme="dark"] {
+  /* Primary palette adjusted for dark theme */
+  --primary-color: #8da1af;          /* Soft blue-gray as primary */
+  --primary-light: #bed0db;          /* Light blue-gray */
+  --primary-dark: #2c586e;           /* Dark teal */
+  --secondary-color: #dcc894;        /* Soft gold */
+  --secondary-light: #dd9f52;        /* Warm orange */
+  --accent-color: #dcc894;           /* Soft gold accent */
+  --danger-color: #dc3545;           /* Keep red for errors */
+  --warning-color: #dd9f52;          /* Warm orange for warnings */
+  --success-color: #28a745;          /* Keep green for success */
+  
+  /* Dark backgrounds using palette */
+  --background-primary: #2b576d;     /* Deep teal */
+  --background-secondary: #2c586e;   /* Dark teal */
+  --background-tertiary: #1a3d4a;    /* Darker variant */
+  
+  /* Dark theme text */
+  --text-primary: #ffffff;           /* White for maximum contrast */
+  --text-secondary: #ffffff;         /* White for secondary text */
+  --text-muted: #bed0db;             /* Light blue-gray for muted text */
+  
+  /* Dark theme borders */
+  --border-color: #8da1af;           /* Soft blue-gray */
+  --border-light: #8da1af;           /* Soft blue-gray */
+  --border-dark: #2c586e;            /* Dark teal */
+  
+  /* Dark theme cards and effects */
+  --card-background: #2b576d;        /* Deep teal */
+  --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  --hover-background: #2c586e;       /* Dark teal */
+  --hover-shadow: 0 8px 15px rgba(0, 0, 0, 0.4);
+}
+
+/* Theme Transition */
+* {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Dark Theme Specific Overrides */
+[data-theme="dark"] body {
+  background-color: var(--background-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .app {
+  background: linear-gradient(135deg, var(--background-secondary) 0%, var(--background-tertiary) 100%) !important;
+}
+
+[data-theme="dark"] .search-section,
+[data-theme="dark"] .products-section {
+  background: var(--background-primary) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .product {
+  background: var(--background-primary) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .product-name {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .search-title,
+[data-theme="dark"] .products-title {
+  color: var(--text-primary) !important;
+}
+
+/* Comprehensive Dark Mode Text Overrides */
+[data-theme="dark"] .product-name,
+[data-theme="dark"] .product-price,
+[data-theme="dark"] .product-stock,
+[data-theme="dark"] .cart-item,
+[data-theme="dark"] .cart-item-name,
+[data-theme="dark"] .cart-item-price,
+[data-theme="dark"] .cart-total,
+[data-theme="dark"] .section-title,
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] h4,
+[data-theme="dark"] h5,
+[data-theme="dark"] h6,
+[data-theme="dark"] p,
+[data-theme="dark"] span,
+[data-theme="dark"] label,
+[data-theme="dark"] .text,
+[data-theme="dark"] .price {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .search-input,
+[data-theme="dark"] input {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .search-input::placeholder,
+[data-theme="dark"] input::placeholder {
+  color: #bed0db !important;
+}
+
+/* Theme Toggle Component */
+.theme-toggle-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+}
+
+.theme-toggle {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+  outline: none;
+  transition: transform 0.2s ease;
+}
+
+.theme-toggle:hover {
+  transform: scale(1.05);
+}
+
+.theme-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.toggle-track {
+  position: relative;
+  width: 60px;
+  height: 30px;
+  background: var(--background-secondary);    /* Light blue-gray */
+  border-radius: 15px;
+  border: 2px solid var(--border-color);      /* Light blue-gray border */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.theme-toggle.dark .toggle-track {
+  background: var(--background-primary);      /* Deep teal in dark mode */
+  border-color: var(--border-color);          /* Soft blue-gray border */
+}
+
+.toggle-icons {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 6px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.icon-light,
+.icon-dark {
+  font-size: 12px;
+  transition: opacity 0.3s ease;
+}
+
+.theme-toggle.light .icon-dark {
+  opacity: 0.3;
+}
+
+.theme-toggle.dark .icon-light {
+  opacity: 0.3;
+}
+
+.toggle-thumb {
+  position: absolute;
+  top: 2px;
+  width: 22px;
+  height: 22px;
+  background: var(--background-primary);      /* Use theme-aware background */
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(44, 88, 110, 0.3);    /* Updated shadow with new palette */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 2;
+}
+
+.toggle-thumb.light {
+  left: 2px;
+  background: linear-gradient(135deg, var(--secondary-light), var(--secondary-color)); /* Soft gold to warm orange */
+}
+
+.toggle-thumb.dark {
+  left: 32px;
+  background: linear-gradient(135deg, var(--primary-light), var(--primary-color)); /* Soft blue-gray to dark teal */
+}
+
+.theme-toggle.animating .toggle-thumb {
+  transition-duration: 0.4s;
+}
+
+/* Print Theme */
+@media print {
+  [data-theme] {
+    --primary-color: #000000;
+    --secondary-color: #000000;
+    --accent-color: #000000;
+    --background-primary: #ffffff;
+    --background-secondary: #ffffff;
+    --background-tertiary: #ffffff;
+    --text-primary: #000000;
+    --text-secondary: #000000;
+    --text-muted: #666666;
+    --border-color: #000000;
+    --shadow: none;
+    --shadow-md: none;
+    --shadow-lg: none;
+    --shadow-xl: none;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Theme-aware scrollbar */
+[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: var(--gray-800);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: var(--gray-600);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--gray-500);
+}
+
+/* Theme-aware selection */
+[data-theme="dark"] ::selection {
+  background-color: var(--primary-light);
+  color: var(--gray-900);
+}
+
+[data-theme="dark"] ::-moz-selection {
+  background-color: var(--primary-light);
+  color: var(--gray-900);
+}
+
+/* Cart Dark Mode Overrides */
+[data-theme="dark"] .cart {
+  background: var(--background-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .cart-header {
+  background: var(--background-primary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .cart-total-section {
+  background: var(--background-secondary) !important;
+  border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .cart-total {
+  background: var(--background-primary) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .cart-item:hover {
+  background: var(--background-secondary) !important;
+}
+
+[data-theme="dark"] .cart-item,
+[data-theme="dark"] .cart-item *,
+[data-theme="dark"] .cart-item-details,
+[data-theme="dark"] .cart-item-name,
+[data-theme="dark"] .cart-item-price,
+[data-theme="dark"] .cart-total-text,
+[data-theme="dark"] .cart-header h3,
+[data-theme="dark"] .cart-header span {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .delete-item-btn {
+  background: var(--danger-color) !important;
+  color: white !important;
+}
+
+[data-theme="dark"] .delete-item-btn:hover {
+  background: #dc2626 !important;
+}
+
+/* Light Theme Cart Overrides */
+[data-theme="light"] .cart {
+  background: var(--background-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+[data-theme="light"] .cart-header {
+  background: var(--background-primary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+[data-theme="light"] .cart-total-section {
+  background: var(--background-secondary) !important;
+  border-color: var(--border-color) !important;
+}
+
+[data-theme="light"] .cart-total {
+  background: var(--background-primary) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Status Bar Theme Overrides */
+[data-theme="light"] .status-bar {
+  background: var(--background-tertiary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .status-bar {
+  background: var(--background-tertiary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+/* Header Title Theme Overrides */
+[data-theme="light"] .app-header {
+  color: white !important;
+}
+
+[data-theme="light"] .header-title {
+  color: white !important;
+}
+
+[data-theme="dark"] .app-header {
+  color: white !important;
+}
+
+[data-theme="dark"] .header-title {
+  color: white !important;
+}
