@@ -41,17 +41,34 @@ function App() {
 
       // For production with live keys and physical readers
       // Set simulated: false to discover real BBPOS readers
-      term.discoverReaders({ simulated: false })
+      // IMPORTANT: Registered readers require location parameter for discovery
+      term.discoverReaders({ 
+        simulated: false,
+        location: 'tml_GBoQHwGS5rcO0D'  // Required for registered BBPOS readers
+      })
         .then(({ discoveredReaders, error }) => {
           if (error) {
             console.error('Discover readers error:', error);
             return alert('Discover failed: ' + error.message);
           }
-          if (discoveredReaders.length === 0) return alert('No physical readers found. Make sure BBPOS reader is on same network and powered on.');
+          if (discoveredReaders.length === 0) {
+            return alert('No readers found at location. Please check:\n• BBPOS reader is powered on\n• Connected to same Wi-Fi network\n• Status is "online" in Stripe Dashboard');
+          }
           
           console.log('Found readers:', discoveredReaders);
-          // Connect to the first discovered reader (BBPOS WisePOS)
-          return term.connectReader(discoveredReaders[0]);
+          
+          // For BBPOS readers, check if pairing is required
+          const reader = discoveredReaders[0];
+          console.log('Attempting to connect to reader:', reader.id, reader.device_type);
+          
+          // Some readers require pairing with a code displayed on the device
+          return term.connectReader(reader, {
+            // If reader shows a pairing code, this function will be called
+            onReaderDisplayPairingCode: (pairingCode) => {
+              console.log('🔢 Pairing code displayed on reader:', pairingCode);
+              alert(`PAIRING REQUIRED!\n\nThe reader is displaying a pairing code.\n\nPlease check your BBPOS device screen and confirm the code: ${pairingCode}\n\nPress OK to continue with pairing.`);
+            }
+          });
         })
         .then(({ reader, error }) => {
           if (error) {
