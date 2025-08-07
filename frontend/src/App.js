@@ -39,16 +39,18 @@ function App() {
       });
       setTerminal(term);
 
-      // Use simulated mode for testing with test keys
-      // For production with live keys, change simulated to false and connect real hardware
+      // For production with live keys and physical readers
+      // Set simulated: false to discover real BBPOS readers
       term.discoverReaders({ simulated: false })
         .then(({ discoveredReaders, error }) => {
           if (error) {
             console.error('Discover readers error:', error);
             return alert('Discover failed: ' + error.message);
           }
-          if (discoveredReaders.length === 0) return alert('No simulated readers found');
-          // Connect to the first simulated reader
+          if (discoveredReaders.length === 0) return alert('No physical readers found. Make sure BBPOS reader is on same network and powered on.');
+          
+          console.log('Found readers:', discoveredReaders);
+          // Connect to the first discovered reader (BBPOS WisePOS)
           return term.connectReader(discoveredReaders[0]);
         })
         .then(({ reader, error }) => {
@@ -57,7 +59,7 @@ function App() {
             return alert('Connect reader failed: ' + error.message);
           }
           setReader(reader);
-          console.log('✅ Connected to simulated Stripe reader:', reader.id);
+          console.log('✅ Connected to BBPOS WisePOS reader:', reader.id);
         })
         .catch(error => {
           console.error('Stripe Terminal initialization error:', error);

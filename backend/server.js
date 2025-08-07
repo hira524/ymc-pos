@@ -318,7 +318,7 @@ app.post('/create_payment_intent', async (req, res) => {
   try {
     const intent = await stripe.paymentIntents.create({
       amount,
-      currency: 'usd', // Changed from 'aud' to 'usd' for card_present compatibility
+      currency: 'aud', // Changed back to AUD for Australian Stripe account
       payment_method_types: ['card_present'],
       capture_method: 'automatic'
     });
