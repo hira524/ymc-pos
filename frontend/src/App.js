@@ -69,7 +69,7 @@ function App() {
     // Production environment (Netlify + Render)
     if (window.location.hostname.includes('netlify.app') || 
         window.location.hostname !== 'localhost') {
-      return process.env.REACT_APP_BACKEND_URL || 'https://your-render-app.onrender.com';
+      return process.env.REACT_APP_BACKEND_URL || 'https://ymc-pos-backend.onrender.com';
     }
     
     // Codespaces environment
