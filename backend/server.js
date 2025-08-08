@@ -7,6 +7,10 @@ const fs = require('fs'); // For token storage
 const qs = require('qs'); // For form-urlencoded
 require('dotenv').config();
 
+// Debug: Check if Stripe key is loaded
+console.log('STRIPE_SECRET_KEY loaded:', process.env.STRIPE_SECRET_KEY ? 'YES' : 'NO');
+console.log('STRIPE_SECRET_KEY length:', process.env.STRIPE_SECRET_KEY ? process.env.STRIPE_SECRET_KEY.length : 0);
+
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const app = express();
 app.use(cors());
