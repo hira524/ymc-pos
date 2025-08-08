@@ -16,9 +16,22 @@ function App() {
   const [terminal, setTerminal] = useState(null);
   const [reader, setReader] = useState(null);
 
+  // Dynamic backend URL for different environments
+  const getBackendUrl = () => {
+    if (window.location.hostname.includes('github.dev')) {
+      // Codespaces environment
+      const baseUrl = window.location.origin.replace('-3000.', '-5000.');
+      return baseUrl;
+    }
+    // Local development
+    return 'http://localhost:5000';
+  };
+
+  const BACKEND_URL = getBackendUrl();
+
   useEffect(() => {
     // 1) Fetch inventory
-    axios.get('http://localhost:5000/inventory')
+    axios.get(`${BACKEND_URL}/inventory`)
       .then(r => setInventory(r.data))
       .catch(e => console.error('Inventory fetch error:', e.response?.data || e.message));
 
@@ -27,7 +40,7 @@ function App() {
       const term = StripeTerminal.create({
         onFetchConnectionToken: async () => {
           try {
-            const r = await axios.post('http://localhost:5000/connection_token');
+            const r = await axios.post(`${BACKEND_URL}/connection_token`);
             return r.data.secret;
           } catch (error) {
             console.error('Connection token error:', error.response?.data || error.message);
@@ -82,7 +95,7 @@ function App() {
           console.error('Stripe Terminal initialization error:', error);
         });
     });
-  }, []);
+  }, [BACKEND_URL]);
 
   const filtered = inventory.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
   const addToCart = i => {
@@ -117,10 +130,10 @@ function App() {
 
   const complete = async method => {
     // 1) Update inventory
-    await axios.post('http://localhost:5000/update-inventory', { cart })
+    await axios.post(`${BACKEND_URL}/update-inventory`, { cart })
       .catch(e => console.error('Update inv error:', e.response?.data || e.message));
     // 2) Log payment
-    await axios.post('http://localhost:5000/log-payment', {
+    await axios.post(`${BACKEND_URL}/log-payment`, {
       items: cart,
       total,
       method
@@ -140,7 +153,7 @@ function App() {
     
     try {
       // Create payment intent
-      const response = await axios.post('http://localhost:5000/create_payment_intent', { amount });
+      const response = await axios.post(`${BACKEND_URL}/create_payment_intent`, { amount });
       const { client_secret } = response.data;
       
       if (!client_secret) {
