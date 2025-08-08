@@ -104,7 +104,7 @@ function App() {
 
     try {
       const { discoveredReaders, error } = await terminal.discoverReaders({ 
-        simulated: false,
+        simulated: true,
         // location: 'tml_GBoQHwGS5rcO0D'  // Required for registered BBPOS readers
       });
 
