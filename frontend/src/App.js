@@ -103,10 +103,22 @@ function App() {
     showAlert('**Retrying Connection**\n\nAttempting to reconnect to payment terminal.\n\nPlease wait...', 'info');
 
     try {
-      const { discoveredReaders, error } = await terminal.discoverReaders({ 
-        simulated: true,
-        // location: 'tml_GBoQHwGS5rcO0D'  // Required for registered BBPOS readers
-      });
+      // Use the current test mode for retry
+      const discoverConfig = testMode ? 
+        { simulated: true } : 
+        { 
+          simulated: false,
+          location: process.env.REACT_APP_STRIPE_LOCATION_ID || 'tml_GBoQHwGS5rcO0D'
+        };
+
+      console.log('🔄 Retry: Discovering readers with config:', discoverConfig);
+      const discoveryResult = await terminal.discoverReaders(discoverConfig);
+      
+      if (!discoveryResult) {
+        return showAlert('**Retry Failed**\n\nNo response from reader discovery.\n\n*Please try again or contact support.*', 'error');
+      }
+      
+      const { discoveredReaders, error } = discoveryResult;
 
       if (error) {
         console.error('Retry discover readers error:', error);
@@ -114,11 +126,23 @@ function App() {
       }
 
       if (discoveredReaders.length === 0) {
-        return showAlert('**No Devices Found**\n\nNo payment terminals detected during retry.\n\n*Please ensure your device is powered on and connected.*', 'warning');
+        const retryMessage = testMode
+          ? '**No Simulated Devices Found**\n\nNo test payment terminals detected during retry.\n\n*This is unusual - simulated readers should always be available in test mode.*'
+          : '**No Devices Found**\n\nNo payment terminals detected during retry.\n\n*Please ensure your device is powered on and connected.*';
+        return showAlert(retryMessage, 'warning');
       }
 
       const reader = discoveredReaders[0];
-      const { reader: connectedReader, error: connectError } = await terminal.connectReader(reader);
+      console.log('🔄 Retry: Connecting to reader:', reader.id, testMode ? '(simulated)' : '(physical)');
+      
+      const connectionResult = await terminal.connectReader(reader);
+      
+      if (!connectionResult) {
+        console.error('Retry connect reader error: No result returned');
+        return showAlert('**Retry Connection Failed**\n\nNo response from terminal connection.\n\n*Please try again or contact support.*', 'error');
+      }
+      
+      const { reader: connectedReader, error: connectError } = connectionResult;
 
       if (connectError) {
         console.error('Retry connect reader error:', connectError);
@@ -126,7 +150,10 @@ function App() {
       }
 
       setReader(connectedReader);
-      showAlert(`**Reconnection Successful**\n\nPayment terminal is now ready for transactions.`, 'success');
+      const successMessage = testMode
+        ? '**Simulated Terminal Reconnected**\n\nTest payment terminal is now ready for simulation.'
+        : '**Reconnection Successful**\n\nPayment terminal is now ready for transactions.';
+      showAlert(successMessage, 'success');
     } catch (error) {
       console.error('Retry connection error:', error);
       showAlert(`**Retry Process Failed**\n\nUnable to complete reconnection attempt.\n\n**Error:** ${error.message}`, 'error');
@@ -134,19 +161,24 @@ function App() {
   };
 
   useEffect(() => {
-    // 1) Fetch Stripe configuration
+    // 1) Fetch Stripe configuration first, then initialize terminal
     axios.get(`${BACKEND_URL}/stripe/config`)
       .then(r => {
-        setTestMode(r.data.testMode);
-        console.log('Stripe config loaded:', r.data.testMode ? 'TEST MODE' : 'LIVE MODE');
+        const isTestMode = r.data.testMode;
+        setTestMode(isTestMode);
+        console.log('Stripe config loaded:', isTestMode ? 'TEST MODE (Simulation)' : 'LIVE MODE');
+        
+        // Initialize terminal AFTER we have the config
+        return initializeStripeTerminal(isTestMode);
       })
       .catch(e => {
         console.warn('Could not fetch Stripe config:', e.message);
         // Default to test mode if config fetch fails
         setTestMode(true);
+        return initializeStripeTerminal(true); // Default to test mode
       });
 
-    // 2) Fetch inventory
+    // 2) Fetch inventory in parallel
     axios.get(`${BACKEND_URL}/inventory`)
       .then(r => {
         setInventory(r.data);
@@ -159,10 +191,14 @@ function App() {
         console.error('Inventory fetch error:', e.response?.data || e.message);
         showAlert(`**Inventory Loading Failed**\n\nUnable to load product catalog from server.\n\n**Error Details:**\n${e.response?.data?.error || e.message}\n\n**Troubleshooting:**\n• Check server connection\n• Verify backend is running\n• Contact system administrator\n\n*POS system may not function properly without inventory.*`, 'error');
       });
+  }, [BACKEND_URL]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // 2) Init Stripe Terminal with simulated mode
-    loadStripeTerminal().then(StripeTerminal => {
+  // Separate function to initialize Stripe Terminal
+  const initializeStripeTerminal = async (isTestMode) => {
+    try {
+      const StripeTerminal = await loadStripeTerminal();
       console.log('✅ Stripe Terminal library loaded successfully');
+      console.log('🎯 Initializing in mode:', isTestMode ? 'TEST (Simulated Readers)' : 'LIVE (Physical Readers)');
       
       const term = StripeTerminal.create({
         onFetchConnectionToken: async () => {
@@ -183,61 +219,91 @@ function App() {
       setTerminal(term);
 
       // Show initial status message
-      showAlert('**Initializing Payment System**\n\nSearching for available payment terminals in your area.\n\nPlease wait while we establish connection...', 'info');
+      showAlert(
+        isTestMode 
+          ? '**Initializing Test Payment System**\n\nSearching for simulated payment terminals for testing.\n\nPlease wait while we establish connection...'
+          : '**Initializing Payment System**\n\nSearching for available payment terminals in your area.\n\nPlease wait while we establish connection...', 
+        'info'
+      );
 
-      // Auto-detect reader type based on environment and test mode
-      const discoverConfig = testMode ? 
+      // Configure reader discovery based on test mode
+      const discoverConfig = isTestMode ? 
         { simulated: true } : // Test mode: use simulated readers
         { 
           simulated: false,
           location: process.env.REACT_APP_STRIPE_LOCATION_ID || 'tml_GBoQHwGS5rcO0D'
         };
       
-      term.discoverReaders(discoverConfig)
-        .then(({ discoveredReaders, error }) => {
-          if (error) {
-            console.error('Discover readers error:', error);
-            return showAlert(`**Reader Discovery Failed**\n\nUnable to locate payment terminals in your area.\n\n**Error:** ${error.message}\n\n*Please ensure your payment device is powered on and connected to the network.*`, 'error');
-          }
-          if (discoveredReaders.length === 0) {
-            return showAlert('**No Payment Terminals Found**\n\nNo compatible payment devices were detected at this location.\n\n**Please verify:**\n• BBPOS reader is powered on and ready\n• Device is connected to the same Wi-Fi network\n• Terminal status shows "online" in Stripe Dashboard\n• Device is within network range\n\n*Contact support if the issue persists.*', 'warning');
-          }
-          
-          console.log('Found readers:', discoveredReaders);
-          
-          // Show success message for reader discovery
-          showAlert(`**Payment Terminal Found**\n\nDiscovered ${discoveredReaders.length} compatible payment device${discoveredReaders.length > 1 ? 's' : ''}.\n\nAttempting to establish connection...`, 'success');
-          
-          // For BBPOS readers, check if pairing is required
-          const reader = discoveredReaders[0];
-          console.log('Attempting to connect to reader:', reader.id, reader.device_type);
-          
-          // Some readers require pairing with a code displayed on the device
-          return term.connectReader(reader, {
-            // If reader shows a pairing code, this function will be called
-            onReaderDisplayPairingCode: (pairingCode) => {
-              console.log('Pairing code displayed on reader:', pairingCode);
-              showAlert(`**Device Pairing Required**\n\nYour BBPOS payment terminal is requesting secure pairing.\n\n**Pairing Code:** <span class="highlight">${pairingCode}</span>\n\n**Next Steps:**\n1. Check your BBPOS device screen\n2. Verify the pairing code matches: **${pairingCode}**\n3. Confirm the pairing on your device\n4. Click OK below to continue\n\n*This ensures secure communication between devices.*`, 'info');
-            }
-          });
-        })
-        .then(({ reader, error }) => {
-          if (error) {
-            console.error('Connect reader error:', error);
-            return showAlert(`**Connection Failed**\n\nUnable to establish connection with the payment terminal.\n\n**Error Details:**\n${error.message}\n\n**Troubleshooting Steps:**\n• Restart the payment device\n• Check network connectivity\n• Ensure device is not connected elsewhere\n• Contact technical support if needed\n\n*Please try again after following these steps.*`, 'error');
-          }
-          setReader(reader);
-          console.log('Connected to BBPOS WisePOS reader:', reader.id);
-          
-          // Show success alert for card reader connection
-          showAlert(`**Card Reader Connected Successfully**\n\nPayment terminal "${reader.label || reader.id}" is now ready for transactions.\n\n*You can now accept card payments.*`, 'success');
-        })
-        .catch(error => {
-          console.error('Stripe Terminal initialization error:', error);
-          showAlert(`**Payment System Initialization Failed**\n\nUnable to initialize the Stripe Terminal payment system.\n\n**Error Details:**\n${error.message || 'Unknown initialization error'}\n\n**Possible Causes:**\n• Network connectivity issues\n• Invalid Stripe configuration\n• Browser compatibility problems\n• Missing payment terminal drivers\n\n**Solutions:**\n• Refresh the page and try again\n• Check your internet connection\n• Contact system administrator\n• Use cash payment as alternative\n\n*Card payments will not be available until this is resolved.*`, 'error');
-        });
-    });
-  }, [BACKEND_URL]); // eslint-disable-line react-hooks/exhaustive-deps
+      console.log('🔍 Discovering readers with config:', discoverConfig);
+      
+      const discoveryResult = await term.discoverReaders(discoverConfig);
+      
+      if (!discoveryResult) {
+        throw new Error('No result returned from reader discovery');
+      }
+      
+      const { discoveredReaders, error } = discoveryResult;
+      
+      if (error) {
+        console.error('Discover readers error:', error);
+        return showAlert(`**Reader Discovery Failed**\n\nUnable to locate payment terminals in your area.\n\n**Error:** ${error.message}\n\n*Please ensure your payment device is powered on and connected to the network.*`, 'error');
+      }
+      
+      if (discoveredReaders.length === 0) {
+        const noReaderMessage = isTestMode 
+          ? '**No Simulated Readers Found**\n\nNo test payment terminals were detected.\n\n**This is unusual for test mode. Please:**\n• Refresh the page\n• Check browser console for errors\n• Verify your test Stripe key\n• Contact support if issue persists\n\n*Simulated readers should always be available in test mode.*'
+          : '**No Payment Terminals Found**\n\nNo compatible payment devices were detected at this location.\n\n**Please verify:**\n• BBPOS reader is powered on and ready\n• Device is connected to the same Wi-Fi network\n• Terminal status shows "online" in Stripe Dashboard\n• Device is within network range\n\n*Contact support if the issue persists.*';
+        return showAlert(noReaderMessage, 'warning');
+      }
+      
+      console.log('Found readers:', discoveredReaders.length, isTestMode ? 'simulated' : 'physical');
+      
+      // Show success message for reader discovery
+      const successMessage = isTestMode
+        ? `**Simulated Payment Terminal Ready**\n\nDiscovered ${discoveredReaders.length} test payment device${discoveredReaders.length > 1 ? 's' : ''} for simulation.\n\nAttempting to establish connection...`
+        : `**Payment Terminal Found**\n\nDiscovered ${discoveredReaders.length} compatible payment device${discoveredReaders.length > 1 ? 's' : ''}.\n\nAttempting to establish connection...`;
+      showAlert(successMessage, 'success');
+      
+      // Connect to the first available reader
+      const reader = discoveredReaders[0];
+      console.log('Attempting to connect to reader:', reader.id, reader.device_type, isTestMode ? '(simulated)' : '(physical)');
+      
+      // Configure connection options based on reader type
+      const connectOptions = isTestMode ? {} : {
+        // If reader shows a pairing code, this function will be called
+        onReaderDisplayPairingCode: (pairingCode) => {
+          console.log('Pairing code displayed on reader:', pairingCode);
+          showAlert(`**Device Pairing Required**\n\nYour BBPOS payment terminal is requesting secure pairing.\n\n**Pairing Code:** <span class="highlight">${pairingCode}</span>\n\n**Next Steps:**\n1. Check your BBPOS device screen\n2. Verify the pairing code matches: **${pairingCode}**\n3. Confirm the pairing on your device\n4. Click OK below to continue\n\n*This ensures secure communication between devices.*`, 'info');
+        }
+      };
+      
+      const connectionResult = await term.connectReader(reader, connectOptions);
+      
+      if (!connectionResult) {
+        throw new Error('No result returned from reader connection');
+      }
+      
+      const { reader: connectedReader, error: connectError } = connectionResult;
+      
+      if (connectError) {
+        console.error('Connect reader error:', connectError);
+        return showAlert(`**Connection Failed**\n\nUnable to establish connection with the payment terminal.\n\n**Error Details:**\n${connectError.message}\n\n**Troubleshooting Steps:**\n• Restart the payment device\n• Check network connectivity\n• Ensure device is not connected elsewhere\n• Contact technical support if needed\n\n*Please try again after following these steps.*`, 'error');
+      }
+      
+      setReader(connectedReader);
+      console.log('Connected to payment reader:', connectedReader.id);
+      
+      // Show success alert for card reader connection
+      const connectionSuccessMessage = isTestMode
+        ? `**Simulated Terminal Connected**\n\nTest payment terminal "${connectedReader.label || connectedReader.id}" is ready for simulation.\n\n*You can now test card payments without real money.*`
+        : `**Card Reader Connected Successfully**\n\nPayment terminal "${connectedReader.label || connectedReader.id}" is now ready for transactions.\n\n*You can now accept card payments.*`;
+      showAlert(connectionSuccessMessage, 'success');
+      
+    } catch (error) {
+      console.error('Stripe Terminal initialization error:', error);
+      showAlert(`**Payment System Initialization Failed**\n\nUnable to initialize the Stripe Terminal payment system.\n\n**Error Details:**\n${error.message || 'Unknown initialization error'}\n\n**Possible Causes:**\n• Network connectivity issues\n• Invalid Stripe configuration\n• Browser compatibility problems\n• Missing payment terminal drivers\n\n**Solutions:**\n• Refresh the page and try again\n• Check your internet connection\n• Contact system administrator\n• Use cash payment as alternative\n\n*Card payments will not be available until this is resolved.*`, 'error');
+    }
+  };
 
   const filtered = inventory.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
   const addToCart = i => {
