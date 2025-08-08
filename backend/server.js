@@ -10,6 +10,8 @@ require('dotenv').config();
 // Debug: Check if Stripe key is loaded
 console.log('STRIPE_SECRET_KEY loaded:', process.env.STRIPE_SECRET_KEY ? 'YES' : 'NO');
 console.log('STRIPE_SECRET_KEY length:', process.env.STRIPE_SECRET_KEY ? process.env.STRIPE_SECRET_KEY.length : 0);
+console.log('PORT from env:', process.env.PORT);
+console.log('PORT parsed:', parseInt(process.env.PORT) || 5000);
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const app = express();
@@ -36,7 +38,8 @@ const CLIENT_SECRET = process.env.GHL_CLIENT_SECRET;
 const REDIRECT_URI = process.env.GHL_REDIRECT_URI;
 const LOCATION_ID = process.env.GHL_LOCATION_ID;
 const BASE_URL = process.env.GHL_BASE_URL || 'https://services.leadconnectorhq.com';
-const PORT = process.env.PORT || 5000;
+// For Render deployment, ensure PORT is a valid number
+const PORT = parseInt(process.env.PORT) || 5000;
 
 // Fallback demo inventory
 const DEMO_INVENTORY = [
