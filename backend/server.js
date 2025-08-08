@@ -13,7 +13,21 @@ console.log('STRIPE_SECRET_KEY length:', process.env.STRIPE_SECRET_KEY ? process
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const app = express();
-app.use(cors());
+
+// Enhanced CORS configuration for cloud deployment
+const corsOptions = {
+  origin: [
+    'http://localhost:3000', // Local development
+    'https://localhost:3000', // Local HTTPS
+    /^https:\/\/.*\.netlify\.app$/, // Netlify deployments
+    /^https:\/\/.*\.vercel\.app$/, // Vercel deployments (alternative)
+    process.env.FRONTEND_URL // Custom domain
+  ].filter(Boolean), // Remove undefined values
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Configuration from environment variables
