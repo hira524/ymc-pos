@@ -398,19 +398,12 @@ function App() {
   const [showInventoryManager, setShowInventoryManager] = useState(false);
   const [inventoryAction, setInventoryAction] = useState(''); // 'add', 'edit', 'view'
   const [selectedItem, setSelectedItem] = useState(null);
-  const [newProduct, setNewProduct] = useState({
-    name: '',
-    price: '',
-    quantity: '',
-    description: ''
-  });
 
   // Other Product Calculator States
   const [showOtherProductCalculator, setShowOtherProductCalculator] = useState(false);
   const [otherProductAmount, setOtherProductAmount] = useState('');
   const [otherProductName, setOtherProductName] = useState('');
   const [calculatorExpression, setCalculatorExpression] = useState('');
-  const [calculatorValues, setCalculatorValues] = useState([]);
 
   // Dynamic backend URL for different environments
   const getBackendUrl = () => {
@@ -675,6 +668,7 @@ function App() {
     showAlert(`**${percentage}% ${roleName} Discount Applied**\n\nSubtotal: $${subtotal.toFixed(2)}\nDiscount: -$${discount.toFixed(2)}\nNew Total: $${(subtotal - discount).toFixed(2)}\n\n*${roleName} discount successfully applied.*`, 'success');
   };
 
+  // eslint-disable-next-line no-unused-vars
   const removeDiscount = () => {
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     setDiscountAmount(0);
@@ -827,43 +821,11 @@ function App() {
   };
 
   // Inventory Management Functions
-  const openInventoryManager = (action, item = null) => {
-    try {
-      setInventoryAction(action);
-      setSelectedItem(item);
-      setShowInventoryManager(true);
-      
-      if (action === 'edit' && item) {
-        setNewProduct({
-          name: item.name,
-          price: item.price.toString(),
-          quantity: item.quantity.toString(),
-          description: item.description || ''
-        });
-      } else if (action === 'add') {
-        setNewProduct({
-          name: '',
-          price: '',
-          quantity: '',
-          description: ''
-        });
-      }
-    } catch (error) {
-      console.error('Error opening inventory manager:', error);
-      showAlert('Error opening inventory manager. Please try again.', 'error');
-    }
-  };
-
+  // eslint-disable-next-line no-unused-vars
   const closeInventoryManager = () => {
     setShowInventoryManager(false);
     setInventoryAction('');
     setSelectedItem(null);
-    setNewProduct({
-      name: '',
-      price: '',
-      quantity: '',
-      description: ''
-    });
   };
 
   // Other Product Calculator Functions
@@ -872,7 +834,6 @@ function App() {
     setOtherProductAmount('');
     setOtherProductName('Custom');
     setCalculatorExpression('');
-    setCalculatorValues([]);
   };
 
   const closeOtherProductCalculator = () => {
@@ -910,11 +871,13 @@ function App() {
     showAlert(`**Custom Product Added**\n\n${name} - $${amount.toFixed(2)} added to cart.`, 'success');
   };
 
+  // eslint-disable-next-line no-unused-vars
   const addQuickAmount = (amount) => {
     setOtherProductAmount(amount.toString());
   };
 
   // Calculator Functions for Other Product
+  // eslint-disable-next-line no-unused-vars
   const addToCalculator = (value) => {
     setCalculatorExpression(prev => prev + value);
   };
@@ -948,122 +911,6 @@ function App() {
     } else {
       // If expression doesn't end with operator, add a plus sign first
       setCalculatorExpression(prev => prev + '+' + value);
-    }
-  };
-
-  const updateProductQuantity = async (itemId, newQuantity) => {
-    try {
-      const response = await axios.put(`${BACKEND_URL}/inventory/${itemId}/quantity`, {
-        quantity: parseInt(newQuantity)
-      });
-      
-      if (response.data.success) {
-        // Update local inventory state
-        setInventory(prev => prev.map(item => 
-          item.id === itemId ? { ...item, quantity: parseInt(newQuantity) } : item
-        ));
-        showAlert(response.data.message, 'success');
-      }
-    } catch (error) {
-      console.error('Update quantity error:', error);
-      showAlert(`**Update Failed**\n\n${error.response?.data?.error || error.message}`, 'error');
-    }
-  };
-
-  const addNewProduct = async () => {
-    try {
-      const { name, price, quantity, description } = newProduct;
-      
-      if (!name || !price || !quantity) {
-        showAlert('**Missing Information**\n\nPlease fill in all required fields (Name, Price, Quantity).', 'warning');
-        return;
-      }
-      
-      if (isNaN(price) || isNaN(quantity) || parseFloat(price) < 0 || parseInt(quantity) < 0) {
-        showAlert('**Invalid Values**\n\nPrice and quantity must be valid non-negative numbers.', 'warning');
-        return;
-      }
-      
-      const response = await axios.post(`${BACKEND_URL}/inventory/add-product`, {
-        name: name.trim(),
-        price: parseFloat(price),
-        quantity: parseInt(quantity),
-        description: description.trim()
-      });
-      
-      if (response.data.success) {
-        // Refresh inventory
-        await fetchInventory();
-        closeInventoryManager();
-        showAlert(response.data.message, 'success');
-      }
-    } catch (error) {
-      console.error('Add product error:', error);
-      showAlert(`**Add Product Failed**\n\n${error.response?.data?.error || error.message}`, 'error');
-    }
-  };
-
-  const updateProduct = async () => {
-    if (!selectedItem) return;
-    
-    try {
-      const { name, price, quantity, description } = newProduct;
-      
-      if (!name || !price || !quantity) {
-        showAlert('**Missing Information**\n\nPlease fill in all required fields (Name, Price, Quantity).', 'warning');
-        return;
-      }
-      
-      if (isNaN(price) || isNaN(quantity) || parseFloat(price) < 0 || parseInt(quantity) < 0) {
-        showAlert('**Invalid Values**\n\nPrice and quantity must be valid non-negative numbers.', 'warning');
-        return;
-      }
-      
-      const response = await axios.put(`${BACKEND_URL}/inventory/${selectedItem.id}`, {
-        name: name.trim(),
-        price: parseFloat(price),
-        quantity: parseInt(quantity),
-        description: description.trim()
-      });
-      
-      if (response.data.success) {
-        // Refresh inventory
-        await fetchInventory();
-        closeInventoryManager();
-        showAlert(response.data.message, 'success');
-      }
-    } catch (error) {
-      console.error('Update product error:', error);
-      showAlert(`**Update Product Failed**\n\n${error.response?.data?.error || error.message}`, 'error');
-    }
-  };
-
-  const deleteProduct = async (itemId, itemName) => {
-    if (!window.confirm(`Are you sure you want to delete "${itemName}"? This action cannot be undone.`)) {
-      return;
-    }
-    
-    try {
-      const response = await axios.delete(`${BACKEND_URL}/inventory/${itemId}`);
-      
-      if (response.data.success) {
-        // Refresh inventory
-        await fetchInventory();
-        closeInventoryManager();
-        showAlert(response.data.message, 'success');
-      }
-    } catch (error) {
-      console.error('Delete product error:', error);
-      showAlert(`**Delete Failed**\n\n${error.response?.data?.error || error.message}`, 'error');
-    }
-  };
-
-  const fetchInventory = async () => {
-    try {
-      const response = await axios.get(`${BACKEND_URL}/inventory`);
-      setInventory(response.data);
-    } catch (error) {
-      console.error('Fetch inventory error:', error);
     }
   };
 
