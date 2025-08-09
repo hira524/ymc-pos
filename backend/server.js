@@ -865,4 +865,224 @@ app.get('/debug/ghl/test', async (req, res) => {
   }
 });
 
+// Inventory Management Endpoints
+
+// Get single item details
+app.get('/inventory/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const ghlItemsPath = path.join(__dirname, 'ghl-items.json');
+    
+    if (fs.existsSync(ghlItemsPath)) {
+      const ghlItems = JSON.parse(fs.readFileSync(ghlItemsPath, 'utf8'));
+      const item = ghlItems.find(item => item.productId === id || item.priceId === id);
+      
+      if (item) {
+        return res.json(item);
+      } else {
+        return res.status(404).json({ error: 'Item not found' });
+      }
+    }
+    
+    res.status(404).json({ error: 'Inventory not available' });
+  } catch (error) {
+    console.error('Get item error:', error);
+    res.status(500).json({ error: 'Failed to get item details' });
+  }
+});
+
+// Update item quantity
+app.put('/inventory/:id/quantity', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { quantity } = req.body;
+    
+    if (typeof quantity !== 'number' || quantity < 0) {
+      return res.status(400).json({ error: 'Invalid quantity. Must be a non-negative number.' });
+    }
+    
+    const ghlItemsPath = path.join(__dirname, 'ghl-items.json');
+    
+    if (fs.existsSync(ghlItemsPath)) {
+      const ghlItems = JSON.parse(fs.readFileSync(ghlItemsPath, 'utf8'));
+      const itemIndex = ghlItems.findIndex(item => item.productId === id || item.priceId === id);
+      
+      if (itemIndex !== -1) {
+        const oldQuantity = ghlItems[itemIndex].quantity || 0;
+        ghlItems[itemIndex].quantity = quantity;
+        
+        fs.writeFileSync(ghlItemsPath, JSON.stringify(ghlItems, null, 2));
+        
+        console.log(`📦 Manual quantity update: ${ghlItems[itemIndex].name} - ${oldQuantity} → ${quantity} units`);
+        
+        return res.json({ 
+          success: true, 
+          item: ghlItems[itemIndex],
+          message: `Updated ${ghlItems[itemIndex].name} quantity from ${oldQuantity} to ${quantity}` 
+        });
+      } else {
+        return res.status(404).json({ error: 'Item not found' });
+      }
+    }
+    
+    res.status(404).json({ error: 'Inventory not available' });
+  } catch (error) {
+    console.error('Update quantity error:', error);
+    res.status(500).json({ error: 'Failed to update quantity' });
+  }
+});
+
+// Add new product
+app.post('/inventory/add-product', async (req, res) => {
+  try {
+    const { name, price, quantity, description } = req.body;
+    
+    if (!name || typeof price !== 'number' || typeof quantity !== 'number') {
+      return res.status(400).json({ 
+        error: 'Missing required fields. Name, price, and quantity are required.' 
+      });
+    }
+    
+    if (price < 0 || quantity < 0) {
+      return res.status(400).json({ 
+        error: 'Price and quantity must be non-negative numbers.' 
+      });
+    }
+    
+    const ghlItemsPath = path.join(__dirname, 'ghl-items.json');
+    
+    // Generate unique IDs
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substring(2, 8);
+    const productId = `manual-${timestamp}-${randomSuffix}`;
+    const priceId = `price-${timestamp}-${randomSuffix}`;
+    
+    const newProduct = {
+      name: name.trim(),
+      productId,
+      priceId,
+      price: parseFloat(price),
+      quantity: parseInt(quantity),
+      description: description?.trim() || `Manual product: ${name.trim()}`,
+      isManual: true,
+      createdAt: new Date().toISOString()
+    };
+    
+    if (fs.existsSync(ghlItemsPath)) {
+      const ghlItems = JSON.parse(fs.readFileSync(ghlItemsPath, 'utf8'));
+      
+      // Check for duplicate names
+      const existingItem = ghlItems.find(item => 
+        item.name.toLowerCase() === name.trim().toLowerCase()
+      );
+      
+      if (existingItem) {
+        return res.status(400).json({ 
+          error: `Product "${name}" already exists. Use a different name or update the existing product.` 
+        });
+      }
+      
+      ghlItems.push(newProduct);
+      fs.writeFileSync(ghlItemsPath, JSON.stringify(ghlItems, null, 2));
+      
+      console.log(`➕ New product added: ${newProduct.name} - $${newProduct.price} (${newProduct.quantity} units)`);
+      
+      return res.json({ 
+        success: true, 
+        product: newProduct,
+        message: `Successfully added "${newProduct.name}" to inventory` 
+      });
+    }
+    
+    res.status(500).json({ error: 'Inventory file not accessible' });
+  } catch (error) {
+    console.error('Add product error:', error);
+    res.status(500).json({ error: 'Failed to add product' });
+  }
+});
+
+// Delete product
+app.delete('/inventory/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const ghlItemsPath = path.join(__dirname, 'ghl-items.json');
+    
+    if (fs.existsSync(ghlItemsPath)) {
+      const ghlItems = JSON.parse(fs.readFileSync(ghlItemsPath, 'utf8'));
+      const itemIndex = ghlItems.findIndex(item => item.productId === id || item.priceId === id);
+      
+      if (itemIndex !== -1) {
+        const deletedItem = ghlItems[itemIndex];
+        ghlItems.splice(itemIndex, 1);
+        
+        fs.writeFileSync(ghlItemsPath, JSON.stringify(ghlItems, null, 2));
+        
+        console.log(`🗑️ Product deleted: ${deletedItem.name}`);
+        
+        return res.json({ 
+          success: true, 
+          message: `Successfully deleted "${deletedItem.name}" from inventory` 
+        });
+      } else {
+        return res.status(404).json({ error: 'Item not found' });
+      }
+    }
+    
+    res.status(404).json({ error: 'Inventory not available' });
+  } catch (error) {
+    console.error('Delete product error:', error);
+    res.status(500).json({ error: 'Failed to delete product' });
+  }
+});
+
+// Update product details
+app.put('/inventory/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, price, quantity, description } = req.body;
+    
+    const ghlItemsPath = path.join(__dirname, 'ghl-items.json');
+    
+    if (fs.existsSync(ghlItemsPath)) {
+      const ghlItems = JSON.parse(fs.readFileSync(ghlItemsPath, 'utf8'));
+      const itemIndex = ghlItems.findIndex(item => item.productId === id || item.priceId === id);
+      
+      if (itemIndex !== -1) {
+        const item = ghlItems[itemIndex];
+        const oldData = { ...item };
+        
+        // Update fields if provided
+        if (name !== undefined) item.name = name.trim();
+        if (price !== undefined) item.price = parseFloat(price);
+        if (quantity !== undefined) item.quantity = parseInt(quantity);
+        if (description !== undefined) item.description = description.trim();
+        
+        // Add update timestamp
+        item.updatedAt = new Date().toISOString();
+        
+        fs.writeFileSync(ghlItemsPath, JSON.stringify(ghlItems, null, 2));
+        
+        console.log(`📝 Product updated: ${item.name}`, {
+          name: oldData.name !== item.name ? `${oldData.name} → ${item.name}` : 'unchanged',
+          price: oldData.price !== item.price ? `$${oldData.price} → $${item.price}` : 'unchanged',
+          quantity: oldData.quantity !== item.quantity ? `${oldData.quantity} → ${item.quantity}` : 'unchanged'
+        });
+        
+        return res.json({ 
+          success: true, 
+          item,
+          message: `Successfully updated "${item.name}"` 
+        });
+      } else {
+        return res.status(404).json({ error: 'Item not found' });
+      }
+    }
+    
+    res.status(404).json({ error: 'Inventory not available' });
+  } catch (error) {
+    console.error('Update product error:', error);
+    res.status(500).json({ error: 'Failed to update product' });
+  }
+});
+
 app.listen(PORT, () => console.log(`🟢 Backend listening on port ${PORT}`));

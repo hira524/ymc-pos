@@ -393,6 +393,17 @@ function App() {
   const [discountAmount, setDiscountAmount] = useState(0);
   const [discountType, setDiscountType] = useState('');
   const [showDiscountPopup, setShowDiscountPopup] = useState(false);
+  
+  // Inventory Management States
+  const [showInventoryManager, setShowInventoryManager] = useState(false);
+  const [inventoryAction, setInventoryAction] = useState(''); // 'add', 'edit', 'view'
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [newProduct, setNewProduct] = useState({
+    name: '',
+    price: '',
+    quantity: '',
+    description: ''
+  });
 
   // Dynamic backend URL for different environments
   const getBackendUrl = () => {
@@ -831,6 +842,162 @@ function App() {
     showAlert(`**Payment Successful**\n\nTransaction completed using ${method.toUpperCase()} payment for $${snapshotTotal.toFixed(2)}.\n\nThank you for your purchase!`, 'success');
   };
 
+  // Inventory Management Functions
+  const openInventoryManager = (action, item = null) => {
+    try {
+      setInventoryAction(action);
+      setSelectedItem(item);
+      setShowInventoryManager(true);
+      
+      if (action === 'edit' && item) {
+        setNewProduct({
+          name: item.name,
+          price: item.price.toString(),
+          quantity: item.quantity.toString(),
+          description: item.description || ''
+        });
+      } else if (action === 'add') {
+        setNewProduct({
+          name: '',
+          price: '',
+          quantity: '',
+          description: ''
+        });
+      }
+    } catch (error) {
+      console.error('Error opening inventory manager:', error);
+      showAlert('Error opening inventory manager. Please try again.', 'error');
+    }
+  };
+
+  const closeInventoryManager = () => {
+    setShowInventoryManager(false);
+    setInventoryAction('');
+    setSelectedItem(null);
+    setNewProduct({
+      name: '',
+      price: '',
+      quantity: '',
+      description: ''
+    });
+  };
+
+  const updateProductQuantity = async (itemId, newQuantity) => {
+    try {
+      const response = await axios.put(`${BACKEND_URL}/inventory/${itemId}/quantity`, {
+        quantity: parseInt(newQuantity)
+      });
+      
+      if (response.data.success) {
+        // Update local inventory state
+        setInventory(prev => prev.map(item => 
+          item.id === itemId ? { ...item, quantity: parseInt(newQuantity) } : item
+        ));
+        showAlert(response.data.message, 'success');
+      }
+    } catch (error) {
+      console.error('Update quantity error:', error);
+      showAlert(`**Update Failed**\n\n${error.response?.data?.error || error.message}`, 'error');
+    }
+  };
+
+  const addNewProduct = async () => {
+    try {
+      const { name, price, quantity, description } = newProduct;
+      
+      if (!name || !price || !quantity) {
+        showAlert('**Missing Information**\n\nPlease fill in all required fields (Name, Price, Quantity).', 'warning');
+        return;
+      }
+      
+      if (isNaN(price) || isNaN(quantity) || parseFloat(price) < 0 || parseInt(quantity) < 0) {
+        showAlert('**Invalid Values**\n\nPrice and quantity must be valid non-negative numbers.', 'warning');
+        return;
+      }
+      
+      const response = await axios.post(`${BACKEND_URL}/inventory/add-product`, {
+        name: name.trim(),
+        price: parseFloat(price),
+        quantity: parseInt(quantity),
+        description: description.trim()
+      });
+      
+      if (response.data.success) {
+        // Refresh inventory
+        await fetchInventory();
+        closeInventoryManager();
+        showAlert(response.data.message, 'success');
+      }
+    } catch (error) {
+      console.error('Add product error:', error);
+      showAlert(`**Add Product Failed**\n\n${error.response?.data?.error || error.message}`, 'error');
+    }
+  };
+
+  const updateProduct = async () => {
+    if (!selectedItem) return;
+    
+    try {
+      const { name, price, quantity, description } = newProduct;
+      
+      if (!name || !price || !quantity) {
+        showAlert('**Missing Information**\n\nPlease fill in all required fields (Name, Price, Quantity).', 'warning');
+        return;
+      }
+      
+      if (isNaN(price) || isNaN(quantity) || parseFloat(price) < 0 || parseInt(quantity) < 0) {
+        showAlert('**Invalid Values**\n\nPrice and quantity must be valid non-negative numbers.', 'warning');
+        return;
+      }
+      
+      const response = await axios.put(`${BACKEND_URL}/inventory/${selectedItem.id}`, {
+        name: name.trim(),
+        price: parseFloat(price),
+        quantity: parseInt(quantity),
+        description: description.trim()
+      });
+      
+      if (response.data.success) {
+        // Refresh inventory
+        await fetchInventory();
+        closeInventoryManager();
+        showAlert(response.data.message, 'success');
+      }
+    } catch (error) {
+      console.error('Update product error:', error);
+      showAlert(`**Update Product Failed**\n\n${error.response?.data?.error || error.message}`, 'error');
+    }
+  };
+
+  const deleteProduct = async (itemId, itemName) => {
+    if (!window.confirm(`Are you sure you want to delete "${itemName}"? This action cannot be undone.`)) {
+      return;
+    }
+    
+    try {
+      const response = await axios.delete(`${BACKEND_URL}/inventory/${itemId}`);
+      
+      if (response.data.success) {
+        // Refresh inventory
+        await fetchInventory();
+        closeInventoryManager();
+        showAlert(response.data.message, 'success');
+      }
+    } catch (error) {
+      console.error('Delete product error:', error);
+      showAlert(`**Delete Failed**\n\n${error.response?.data?.error || error.message}`, 'error');
+    }
+  };
+
+  const fetchInventory = async () => {
+    try {
+      const response = await axios.get(`${BACKEND_URL}/inventory`);
+      setInventory(response.data);
+    } catch (error) {
+      console.error('Fetch inventory error:', error);
+    }
+  };
+
   const checkout = async method => {
     if (cart.length === 0) return showAlert('**Empty Cart**\n\nYour shopping cart is currently empty.\n\n*Please add some items before proceeding to checkout.*', 'warning');
     
@@ -955,6 +1122,13 @@ function App() {
     showAlert('**Cash Payment Cancelled**\n\nReturning to cart.', 'info');
   };
 
+  // Debug logging
+  console.log('🔧 Inventory Manager State:', {
+    showInventoryManager,
+    inventoryAction,
+    selectedItem: selectedItem?.name
+  });
+
   return (
     <div className="app">
       {/* Custom Alert Components */}
@@ -981,8 +1155,41 @@ function App() {
       
       {/* Header */}
       <header className="app-header">
-        <h1 className="header-title">🏪 YMC Desktop POS</h1>
-        <p className="header-subtitle">Point of Sale System</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+          <div>
+            <h1 className="header-title">🏪 YMC Desktop POS</h1>
+            <p className="header-subtitle">Point of Sale System</p>
+          </div>
+          <button
+            className="inventory-manager-btn"
+            onClick={() => openInventoryManager('view')}
+            style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '12px 20px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.transform = 'translateY(-2px)';
+              e.target.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+            }}
+          >
+            📦 Manage Inventory
+          </button>
+        </div>
       </header>
 
       {/* Main Container */}
@@ -1321,6 +1528,296 @@ function App() {
                 }}
               >
                 ❌ Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Inventory Management Popup */}
+      {showInventoryManager && (
+        <div className="discount-popup-overlay animate-fade-in" style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000
+        }}>
+          <div className="inventory-manager-popup animate-slide-up">
+            <div className="popup-header" style={{ 
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              padding: 'var(--spacing-4)',
+              borderRadius: '12px 12px 0 0'
+            }}>
+              <h3 style={{ margin: 0, fontSize: 'var(--font-size-xl)', fontWeight: '700' }}>
+                📦 Inventory Management
+              </h3>
+              <p style={{ margin: '8px 0 0 0', opacity: 0.9, fontSize: 'var(--font-size-sm)' }}>
+                {inventoryAction === 'view' ? 'Manage your product inventory' : 
+                 inventoryAction === 'add' ? 'Add a new product' : 
+                 inventoryAction === 'edit' ? `Edit ${selectedItem?.name}` : 'Inventory Manager'}
+              </p>
+            </div>
+
+            <div style={{ 
+              padding: 'var(--spacing-4)', 
+              maxHeight: '70vh', 
+              overflowY: 'auto',
+              minHeight: '400px'
+            }}>
+              {inventoryAction === 'view' && (
+                <div>
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    marginBottom: 'var(--spacing-4)'
+                  }}>
+                    <h4 style={{ margin: 0, color: 'var(--text-color)' }}>Current Inventory</h4>
+                    <button
+                      className="btn-success"
+                      onClick={() => openInventoryManager('add')}
+                      style={{ 
+                        fontSize: 'var(--font-size-sm)',
+                        padding: '8px 16px'
+                      }}
+                    >
+                      ➕ Add Product
+                    </button>
+                  </div>
+                  
+                  <div style={{ 
+                    display: 'grid', 
+                    gap: 'var(--spacing-3)',
+                    maxHeight: '400px',
+                    overflowY: 'auto'
+                  }}>
+                    {inventory.map((item) => (
+                      <div key={item.id} style={{
+                        border: '2px solid var(--border-color)',
+                        borderRadius: 'var(--border-radius)',
+                        padding: 'var(--spacing-3)',
+                        background: 'var(--card-background)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: '600', marginBottom: '4px' }}>{item.name}</div>
+                          <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
+                            ${item.price.toFixed(2)} • Stock: {item.quantity} units
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <input
+                            type="number"
+                            min="0"
+                            defaultValue={item.quantity}
+                            style={{
+                              width: '70px',
+                              padding: '4px 8px',
+                              border: '1px solid var(--border-color)',
+                              borderRadius: '4px',
+                              fontSize: 'var(--font-size-sm)'
+                            }}
+                            onBlur={(e) => {
+                              const newQty = parseInt(e.target.value) || 0;
+                              if (newQty !== item.quantity) {
+                                updateProductQuantity(item.id, newQty);
+                              }
+                            }}
+                          />
+                          <button
+                            className="btn-primary"
+                            onClick={() => openInventoryManager('edit', item)}
+                            style={{ 
+                              fontSize: 'var(--font-size-xs)',
+                              padding: '6px 12px',
+                              minWidth: 'auto'
+                            }}
+                          >
+                            ✏️
+                          </button>
+                          {item.isManual && (
+                            <button
+                              className="btn-danger"
+                              onClick={() => deleteProduct(item.id, item.name)}
+                              style={{ 
+                                fontSize: 'var(--font-size-xs)',
+                                padding: '6px 12px',
+                                minWidth: 'auto'
+                              }}
+                            >
+                              🗑️
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {(inventoryAction === 'add' || inventoryAction === 'edit') && (
+                <div>
+                  <div style={{ 
+                    display: 'grid', 
+                    gap: 'var(--spacing-3)',
+                    marginBottom: 'var(--spacing-4)'
+                  }}>
+                    <div>
+                      <label style={{ 
+                        display: 'block', 
+                        marginBottom: '8px', 
+                        fontWeight: '600',
+                        color: 'var(--text-color)'
+                      }}>
+                        Product Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={newProduct.name}
+                        onChange={(e) => setNewProduct(prev => ({...prev, name: e.target.value}))}
+                        placeholder="Enter product name"
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          border: '2px solid var(--border-color)',
+                          borderRadius: '8px',
+                          fontSize: 'var(--font-size-base)',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                    </div>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-3)' }}>
+                      <div>
+                        <label style={{ 
+                          display: 'block', 
+                          marginBottom: '8px', 
+                          fontWeight: '600',
+                          color: 'var(--text-color)'
+                        }}>
+                          Price ($) *
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={newProduct.price}
+                          onChange={(e) => setNewProduct(prev => ({...prev, price: e.target.value}))}
+                          placeholder="0.00"
+                          style={{
+                            width: '100%',
+                            padding: '12px',
+                            border: '2px solid var(--border-color)',
+                            borderRadius: '8px',
+                            fontSize: 'var(--font-size-base)',
+                            boxSizing: 'border-box'
+                          }}
+                        />
+                      </div>
+                      
+                      <div>
+                        <label style={{ 
+                          display: 'block', 
+                          marginBottom: '8px', 
+                          fontWeight: '600',
+                          color: 'var(--text-color)'
+                        }}>
+                          Quantity *
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={newProduct.quantity}
+                          onChange={(e) => setNewProduct(prev => ({...prev, quantity: e.target.value}))}
+                          placeholder="0"
+                          style={{
+                            width: '100%',
+                            padding: '12px',
+                            border: '2px solid var(--border-color)',
+                            borderRadius: '8px',
+                            fontSize: 'var(--font-size-base)',
+                            boxSizing: 'border-box'
+                          }}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label style={{ 
+                        display: 'block', 
+                        marginBottom: '8px', 
+                        fontWeight: '600',
+                        color: 'var(--text-color)'
+                      }}>
+                        Description
+                      </label>
+                      <textarea
+                        value={newProduct.description}
+                        onChange={(e) => setNewProduct(prev => ({...prev, description: e.target.value}))}
+                        placeholder="Optional product description"
+                        rows={3}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          border: '2px solid var(--border-color)',
+                          borderRadius: '8px',
+                          fontSize: 'var(--font-size-base)',
+                          resize: 'vertical',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ 
+                    display: 'flex', 
+                    gap: 'var(--spacing-3)', 
+                    justifyContent: 'flex-end',
+                    marginTop: 'var(--spacing-4)'
+                  }}>
+                    <button
+                      className="btn-secondary"
+                      onClick={() => openInventoryManager('view')}
+                      style={{ padding: '12px 24px' }}
+                    >
+                      ← Back to List
+                    </button>
+                    <button
+                      className="btn-success"
+                      onClick={inventoryAction === 'add' ? addNewProduct : updateProduct}
+                      style={{ padding: '12px 24px' }}
+                    >
+                      {inventoryAction === 'add' ? '➕ Add Product' : '💾 Update Product'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'center',
+              padding: 'var(--spacing-4)',
+              borderTop: '1px solid var(--border-color)'
+            }}>
+              <button
+                className="btn-secondary"
+                onClick={closeInventoryManager}
+                style={{
+                  padding: '12px 32px',
+                  fontSize: 'var(--font-size-base)'
+                }}
+              >
+                ✕ Close
               </button>
             </div>
           </div>
