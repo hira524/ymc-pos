@@ -389,6 +389,10 @@ function App() {
   const [paymentProgress, setPaymentProgress] = useState(0);
   const [paymentSnapshot, setPaymentSnapshot] = useState({ cart: [], total: 0 });
   const [cashCalculatorOpen, setCashCalculatorOpen] = useState(false);
+  const [discountApplied, setDiscountApplied] = useState(false);
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [discountType, setDiscountType] = useState('');
+  const [showDiscountPopup, setShowDiscountPopup] = useState(false);
 
   // Dynamic backend URL for different environments
   const getBackendUrl = () => {
@@ -662,7 +666,124 @@ function App() {
     }
   };
 
+  // Discount Functions
+  const discountRoles = [
+    { name: 'Staff', percentage: 10, emoji: '👨‍💼', color: '#3b82f6' },
+    { name: 'Senior', percentage: 15, emoji: '👴', color: '#8b5cf6' },
+    { name: 'Student', percentage: 20, emoji: '🎓', color: '#10b981' },
+    { name: 'Family', percentage: 5, emoji: '👨‍👩‍👧‍👦', color: '#f59e0b' },
+    { name: 'Member', percentage: 12, emoji: '⭐', color: '#ef4444' }
+  ];
+
+  const applyDiscount = (percentage = 10, roleName = 'Staff') => {
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const discount = subtotal * (percentage / 100);
+    setDiscountAmount(discount);
+    setDiscountApplied(true);
+    setDiscountType(roleName);
+    setTotal(subtotal - discount);
+    setShowDiscountPopup(false);
+    showAlert(`**${percentage}% ${roleName} Discount Applied**\n\nSubtotal: $${subtotal.toFixed(2)}\nDiscount: -$${discount.toFixed(2)}\nNew Total: $${(subtotal - discount).toFixed(2)}\n\n*${roleName} discount successfully applied.*`, 'success');
+  };
+
+  const removeDiscount = () => {
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    setDiscountAmount(0);
+    setDiscountApplied(false);
+    setDiscountType('');
+    setTotal(subtotal);
+    setShowDiscountPopup(false);
+    showAlert('**Discount Removed**\n\nReturned to original pricing.', 'info');
+  };
+
+  const recalculateTotal = () => {
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    if (discountApplied) {
+      // Find the current discount percentage based on the discount type
+      const currentRole = discountRoles.find(role => role.name === discountType);
+      const percentage = currentRole ? currentRole.percentage : 10;
+      const discount = subtotal * (percentage / 100);
+      setDiscountAmount(discount);
+      setTotal(subtotal - discount);
+    } else {
+      setTotal(subtotal);
+    }
+  };
+
+  // Update total calculation in cart operations
+  const addToCartWithDiscount = (i) => {
+    const exists = cart.find(c => c.id === i.id);
+    let newCart;
+    if (exists) {
+      exists.quantity++;
+      newCart = [...cart];
+    } else {
+      newCart = [...cart, { ...i, quantity: 1 }];
+    }
+    setCart(newCart);
+    
+    // Recalculate total immediately
+    const subtotal = newCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    if (discountApplied) {
+      const currentRole = discountRoles.find(role => role.name === discountType);
+      const percentage = currentRole ? currentRole.percentage : 10;
+      const discount = subtotal * (percentage / 100);
+      setDiscountAmount(discount);
+      setTotal(subtotal - discount);
+    } else {
+      setTotal(subtotal);
+    }
+  };
+
+  const updateQtyWithDiscount = (id, qty) => {
+    const newCart = cart.map(c => {
+      if (c.id === id) {
+        c.quantity = qty;
+      }
+      return c;
+    });
+    setCart(newCart);
+    
+    // Recalculate total immediately
+    const subtotal = newCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    if (discountApplied) {
+      const currentRole = discountRoles.find(role => role.name === discountType);
+      const percentage = currentRole ? currentRole.percentage : 10;
+      const discount = subtotal * (percentage / 100);
+      setDiscountAmount(discount);
+      setTotal(subtotal - discount);
+    } else {
+      setTotal(subtotal);
+    }
+  };
+
+  const removeFromCartWithDiscount = (id) => {
+    const newCart = cart.filter(c => c.id !== id);
+    setCart(newCart);
+    
+    // Recalculate total immediately
+    const subtotal = newCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    if (discountApplied) {
+      const currentRole = discountRoles.find(role => role.name === discountType);
+      const percentage = currentRole ? currentRole.percentage : 10;
+      const discount = subtotal * (percentage / 100);
+      setDiscountAmount(discount);
+      setTotal(subtotal - discount);
+    } else {
+      setTotal(subtotal);
+    }
+  };
+
   const complete = async method => {
+    console.log('🛒 Updating inventory for cart:', cart);
+    console.log('🛒 Cart items structure:', cart.map(item => ({ 
+      id: item.id, 
+      name: item.name, 
+      priceId: item.priceId, 
+      quantity: item.quantity,
+      price: item.price 
+    })));
+    
     // 1) Update inventory
     await axios.post(`${BACKEND_URL}/update-inventory`, { cart })
       .catch(e => console.error('Update inv error:', e.response?.data || e.message));
@@ -675,10 +796,21 @@ function App() {
 
     setCart([]);
     setTotal(0);
+    setDiscountApplied(false);
+    setDiscountAmount(0);
     showAlert(`**Payment Successful**\n\nTransaction completed using ${method.toUpperCase()} payment.\n\nThank you for your purchase!`, 'success');
   };
 
   const completeWithSnapshot = async (method, snapshotCart, snapshotTotal) => {
+    console.log('🛒 Updating inventory for snapshot cart:', snapshotCart);
+    console.log('🛒 Snapshot cart items structure:', snapshotCart.map(item => ({ 
+      id: item.id, 
+      name: item.name, 
+      priceId: item.priceId, 
+      quantity: item.quantity,
+      price: item.price 
+    })));
+    
     // 1) Update inventory using snapshot data
     await axios.post(`${BACKEND_URL}/update-inventory`, { cart: snapshotCart })
       .catch(e => console.error('Update inv error:', e.response?.data || e.message));
@@ -692,6 +824,8 @@ function App() {
     // Clear the current cart (regardless of what's in it now)
     setCart([]);
     setTotal(0);
+    setDiscountApplied(false);
+    setDiscountAmount(0);
     // Clear payment snapshot
     setPaymentSnapshot({ cart: [], total: 0 });
     showAlert(`**Payment Successful**\n\nTransaction completed using ${method.toUpperCase()} payment for $${snapshotTotal.toFixed(2)}.\n\nThank you for your purchase!`, 'success');
@@ -878,7 +1012,7 @@ function App() {
                 <div 
                   key={i.id} 
                   className={`product hover-lift transition-all animate-slide-in-up animate-delay-${Math.min(index * 100, 1000)}`}
-                  onClick={() => addToCart(i)}
+                  onClick={() => addToCartWithDiscount(i)}
                 >
                   <h3 className="product-name">{i.name}</h3>
                   <div className="product-price">${i.price.toFixed(2)}</div>
@@ -922,12 +1056,12 @@ function App() {
                       type="number" 
                       min="1" 
                       value={c.quantity}
-                      onChange={e => updateQty(c.id, Number(e.target.value))}
+                      onChange={e => updateQtyWithDiscount(c.id, Number(e.target.value))}
                       className="quantity-input transition-all"
                     />
                     <button 
                       className="delete-item-btn btn-danger"
-                      onClick={() => removeFromCart(c.id)}
+                      onClick={() => removeFromCartWithDiscount(c.id)}
                       title="Remove item from cart"
                     >
                       🗑️
@@ -939,6 +1073,78 @@ function App() {
           </div>
 
           <div className="cart-total-section" style={{ flexShrink: 0, padding: 'var(--spacing-4) var(--spacing-6)' }}>
+            {/* Discount Controls */}
+            <div className="discount-controls" style={{ marginBottom: 'var(--spacing-4)' }}>
+              <div style={{ display: 'flex', gap: 'var(--spacing-2)', marginBottom: 'var(--spacing-3)' }}>
+                {!discountApplied ? (
+                  <button 
+                    className="discount-btn btn-primary"
+                    onClick={() => setShowDiscountPopup(true)}
+                    disabled={cart.length === 0}
+                    style={{ 
+                      flex: 1, 
+                      padding: 'var(--spacing-3) var(--spacing-4)', 
+                      fontSize: 'var(--font-size-base)',
+                      backgroundColor: cart.length === 0 ? 'var(--gray-300)' : 'var(--primary-color)',
+                      opacity: cart.length === 0 ? 0.6 : 1,
+                      fontWeight: '600'
+                    }}
+                  >
+                    �️ Add Discount
+                  </button>
+                ) : (
+                  <div style={{ 
+                    flex: 1, 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 'var(--spacing-2)',
+                    padding: 'var(--spacing-2)',
+                    backgroundColor: 'var(--success-light, #d4edda)',
+                    border: '1px solid var(--success-color)',
+                    borderRadius: 'var(--border-radius)',
+                    fontSize: 'var(--font-size-sm)'
+                  }}>
+                    <span style={{ flex: 1, fontWeight: '600' }}>
+                      {discountRoles.find(role => role.name === discountType)?.emoji} {discountType} Discount Applied
+                    </span>
+                    <button 
+                      className="remove-discount-btn btn-secondary"
+                      onClick={removeDiscount}
+                      style={{ 
+                        padding: 'var(--spacing-1) var(--spacing-2)', 
+                        fontSize: 'var(--font-size-xs)',
+                        minWidth: 'auto',
+                        borderRadius: 'var(--border-radius-sm)'
+                      }}
+                    >
+                      ❌ Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+              
+              {discountApplied && (
+                <div className="discount-summary">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--spacing-1)' }}>
+                    <span style={{ fontWeight: '600' }}>
+                      {discountRoles.find(role => role.name === discountType)?.emoji} {discountType} Discount:
+                    </span>
+                    <span style={{ fontWeight: '700', color: 'var(--success-color)' }}>
+                      {discountRoles.find(role => role.name === discountType)?.percentage}% OFF
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-sm)', color: 'var(--gray-600)' }}>
+                    <span>Subtotal:</span>
+                    <span>${(total + discountAmount).toFixed(2)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-sm)', color: 'var(--success-dark)', fontWeight: '600' }}>
+                    <span>Discount:</span>
+                    <span>-${discountAmount.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="cart-total" style={{ marginBottom: 'var(--spacing-4)', padding: 'var(--spacing-3)', fontSize: 'var(--font-size-lg)' }}>
               <span className="total-label">Total:</span>
               <span className="total-amount">${total.toFixed(2)}</span>
@@ -993,6 +1199,133 @@ function App() {
           </div>
         </aside>
       </div>
+
+      {/* Discount Selection Popup */}
+      {showDiscountPopup && (
+        <div className="discount-popup-overlay" style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000
+        }}>
+          <div className="discount-popup" style={{
+            backgroundColor: 'white',
+            borderRadius: 'var(--border-radius-lg)',
+            padding: 'var(--spacing-6)',
+            maxWidth: '500px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflowY: 'auto',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            animation: 'fadeInScale 0.2s ease-out'
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: 'var(--spacing-4)' }}>
+              <h3 style={{ 
+                margin: 0, 
+                fontSize: 'var(--font-size-xl)', 
+                fontWeight: '700',
+                color: 'var(--gray-800)'
+              }}>
+                🏷️ Select Discount Type
+              </h3>
+              <p style={{ 
+                margin: 'var(--spacing-2) 0 0 0', 
+                color: 'var(--gray-600)',
+                fontSize: 'var(--font-size-sm)'
+              }}>
+                Choose the appropriate discount for this customer
+              </p>
+            </div>
+
+            <div className="discount-options" style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: 'var(--spacing-3)',
+              marginBottom: 'var(--spacing-5)'
+            }}>
+              {discountRoles.map((role, index) => (
+                <button
+                  key={index}
+                  className="discount-role-btn"
+                  onClick={() => applyDiscount(role.percentage, role.name)}
+                  style={{
+                    padding: 'var(--spacing-4)',
+                    border: '2px solid',
+                    borderColor: role.color,
+                    borderRadius: 'var(--border-radius)',
+                    backgroundColor: 'white',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    textAlign: 'center',
+                    fontSize: 'var(--font-size-sm)',
+                    fontWeight: '600',
+                    position: 'relative',
+                    overflow: 'hidden'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = role.color;
+                    e.target.style.color = 'white';
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = 'white';
+                    e.target.style.color = 'inherit';
+                    e.target.style.transform = 'translateY(0)';
+                    e.target.style.boxShadow = 'none';
+                  }}
+                >
+                  <div style={{ fontSize: 'var(--font-size-2xl)', marginBottom: 'var(--spacing-1)' }}>
+                    {role.emoji}
+                  </div>
+                  <div style={{ fontWeight: '700', marginBottom: 'var(--spacing-1)' }}>
+                    {role.name}
+                  </div>
+                  <div style={{ 
+                    fontSize: 'var(--font-size-lg)', 
+                    fontWeight: '700',
+                    color: role.color
+                  }}>
+                    {role.percentage}% OFF
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <button
+                className="btn-secondary"
+                onClick={() => setShowDiscountPopup(false)}
+                style={{
+                  padding: 'var(--spacing-3) var(--spacing-6)',
+                  fontSize: 'var(--font-size-sm)',
+                  fontWeight: '600',
+                  borderRadius: 'var(--border-radius)',
+                  border: '1px solid var(--gray-300)',
+                  backgroundColor: 'white',
+                  color: 'var(--gray-700)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = 'var(--gray-50)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = 'white';
+                }}
+              >
+                ❌ Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

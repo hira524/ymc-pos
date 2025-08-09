@@ -1828,3 +1828,90 @@
     min-width: auto;
   }
 }
+
+/* =======================
+   Discount Popup Styles
+   ======================= */
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.discount-popup-overlay {
+  backdrop-filter: blur(4px);
+}
+
+.discount-role-btn {
+  position: relative;
+}
+
+.discount-role-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, transparent 48%, rgba(255, 255, 255, 0.1) 50%, transparent 52%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.discount-role-btn:hover::before {
+  opacity: 1;
+}
+
+.discount-controls .btn-primary {
+  background: linear-gradient(135deg, var(--primary-color) 0%, #4f46e5 100%);
+  border: none;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+}
+
+.discount-controls .btn-primary:hover {
+  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+  box-shadow: 0 4px 8px rgba(79, 70, 229, 0.3);
+  transform: translateY(-1px);
+}
+
+.discount-controls .btn-primary:disabled {
+  background: var(--gray-300);
+  box-shadow: none;
+  transform: none;
+}
+
+/* Enhanced discount summary styling */
+.discount-summary {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border: 2px solid #0ea5e9;
+  border-radius: var(--border-radius);
+  padding: var(--spacing-3);
+  margin-bottom: var(--spacing-3);
+  position: relative;
+  overflow: hidden;
+}
+
+.discount-summary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #0ea5e9, #3b82f6, #8b5cf6, #0ea5e9);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

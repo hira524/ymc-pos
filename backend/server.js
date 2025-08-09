@@ -4,7 +4,9 @@ const axios = require('axios');
 const cors = require('cors');
 const Stripe = require('stripe');
 const fs = require('fs'); // For token storage
+const path = require('path'); // For file paths
 const qs = require('qs'); // For form-urlencoded
+const nodemailer = require('nodemailer'); // For email notifications
 require('dotenv').config();
 
 // Debug: Check if Stripe key is loaded
@@ -40,6 +42,54 @@ const LOCATION_ID = process.env.GHL_LOCATION_ID;
 const BASE_URL = process.env.GHL_BASE_URL || 'https://services.leadconnectorhq.com';
 // For Render deployment, ensure PORT is a valid number
 const PORT = parseInt(process.env.PORT) || 5000;
+
+// Email configuration for stock alerts
+const emailTransporter = nodemailer.createTransport({
+  service: 'gmail', // or your email service
+  auth: {
+    user: process.env.EMAIL_USER, // Add this to your environment variables
+    pass: process.env.EMAIL_PASS  // Add this to your environment variables
+  }
+});
+
+// Function to send low stock alert
+async function sendLowStockAlert(productName, currentStock, threshold = 20) {
+  try {
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: process.env.ALERT_EMAIL || process.env.EMAIL_USER, // Add ALERT_EMAIL to env vars
+      subject: `🚨 Low Stock Alert - ${productName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #dc3545;">🚨 Low Stock Alert</h2>
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #dc3545;">
+            <h3 style="margin-top: 0; color: #333;">Product: ${productName}</h3>
+            <p><strong>Current Stock:</strong> ${currentStock} units</p>
+            <p><strong>Alert Threshold:</strong> ${threshold} units</p>
+            <p style="color: #dc3545;"><strong>Action Required:</strong> Please restock this item soon.</p>
+          </div>
+          <div style="margin-top: 20px; padding: 15px; background: #e3f2fd; border-radius: 8px;">
+            <h4 style="margin-top: 0;">What to do:</h4>
+            <ul>
+              <li>Check supplier availability</li>
+              <li>Place restock order</li>
+              <li>Update inventory in GHL system</li>
+              <li>Monitor sales to prevent stockout</li>
+            </ul>
+          </div>
+          <p style="margin-top: 20px; font-size: 12px; color: #666;">
+            This alert was sent automatically by the YMC POS System when stock levels reached the threshold.
+          </p>
+        </div>
+      `
+    };
+
+    await emailTransporter.sendMail(mailOptions);
+    console.log(`📧 Low stock alert sent for ${productName} (${currentStock} units remaining)`);
+  } catch (error) {
+    console.error('Failed to send low stock alert:', error);
+  }
+}
 
 // Fallback demo inventory
 const DEMO_INVENTORY = [
@@ -282,28 +332,166 @@ app.get('/inventory', async (req, res) => {
   }
 });
 
+// Test inventory update endpoint
+app.post('/test-inventory-update', async (req, res) => {
+  try {
+    // Test with the first item in inventory
+    const { itemId, priceId, quantity } = req.body;
+    console.log('🧪 Testing inventory update for:', { itemId, priceId, quantity });
+    
+    let token = await getAccessToken();
+    const priceResp = await axios.get(`${BASE_URL}/products/${itemId}/prices/${priceId}`, {
+      headers: { Authorization: `Bearer ${token}`, 'Version': '2021-04-15' }
+    });
+    
+    console.log('📊 Current stock:', priceResp.data.availableQuantity);
+    const newQty = priceResp.data.availableQuantity - quantity;
+    console.log('📊 New stock will be:', newQty);
+    
+    await axios.put(`${BASE_URL}/products/${itemId}/prices/${priceId}`, {
+      availableQuantity: newQty
+    }, {
+      headers: { Authorization: `Bearer ${token}`, 'Version': '2021-04-15' }
+    });
+    
+    res.json({ success: true, oldQty: priceResp.data.availableQuantity, newQty });
+  } catch (error) {
+    console.error('Test update failed:', error.response?.data || error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // /update-inventory
 app.post('/update-inventory', async (req, res) => {
   const { cart } = req.body;
-  let token = await getAccessToken();
+  console.log('📦 Inventory update request received');
+  console.log('🛒 Cart data:', JSON.stringify(cart, null, 2));
+  
+  // Check if we're using local inventory file
+  const ghlItemsPath = path.join(__dirname, 'ghl-items.json');
+  const useLocalInventory = fs.existsSync(ghlItemsPath);
+  
+  if (useLocalInventory) {
+    console.log('📁 Using local inventory file for updates');
+    try {
+      const ghlItems = JSON.parse(fs.readFileSync(ghlItemsPath, 'utf8'));
+      const lowStockItems = [];
+      
+      // Update local inventory quantities
+      for (const item of cart) {
+        console.log(`🔍 Processing item: ${item.name} (ID: ${item.id}, PriceID: ${item.priceId}, Qty: ${item.quantity})`);
+        
+        const ghlItem = ghlItems.find(g => g.productId === item.id && g.priceId === item.priceId);
+        if (ghlItem) {
+          const oldQty = ghlItem.quantity || 20; // Default quantity if not set
+          const newQty = Math.max(0, oldQty - item.quantity);
+          ghlItem.quantity = newQty;
+          
+          console.log(`📦 Updated ${item.name}: ${oldQty} → ${newQty} units`);
+          
+          // Check for low stock
+          const LOW_STOCK_THRESHOLD = 20;
+          if (newQty <= LOW_STOCK_THRESHOLD && newQty > 0) {
+            lowStockItems.push({
+              name: item.name,
+              quantity: newQty,
+              threshold: LOW_STOCK_THRESHOLD
+            });
+          }
+        } else {
+          console.warn(`⚠️ Item not found in local inventory: ${item.name}`);
+        }
+      }
+      
+      // Save updated inventory
+      fs.writeFileSync(ghlItemsPath, JSON.stringify(ghlItems, null, 2));
+      console.log('💾 Local inventory file updated');
+      
+      // Send low stock alerts
+      for (const lowStockItem of lowStockItems) {
+        await sendLowStockAlert(lowStockItem.name, lowStockItem.quantity, lowStockItem.threshold);
+      }
+      
+      return res.json({ 
+        success: true, 
+        method: 'local',
+        lowStockAlerts: lowStockItems.length,
+        message: lowStockItems.length > 0 ? 
+          `Local inventory updated. ${lowStockItems.length} low stock alert(s) sent.` : 
+          'Local inventory updated successfully.'
+      });
+    } catch (localError) {
+      console.error('❌ Local inventory update failed:', localError.message);
+      return res.status(500).json({ error: 'Local inventory update failed', details: localError.message });
+    }
+  }
+  
+  // Fall back to GHL API update
+  let token;
   try {
+    token = await getAccessToken();
+  } catch (tokenError) {
+    console.error('❌ Token error:', tokenError.message);
+    return res.status(401).json({ error: 'GHL authentication failed', needsAuth: true });
+  }
+  
+  try {
+    const lowStockItems = [];
+    
     for (const item of cart) {
+      console.log(`🔍 Processing GHL item: ${item.name} (ID: ${item.id}, PriceID: ${item.priceId}, Qty: ${item.quantity})`);
+      
+      if (!item.id || !item.priceId) {
+        console.error(`❌ Missing required fields for item: ${item.name}`, { id: item.id, priceId: item.priceId });
+        continue;
+      }
       const priceResp = await axios.get(`${BASE_URL}/products/${item.id}/prices/${item.priceId}`, {
         headers: { Authorization: `Bearer ${token}`, 'Version': '2021-04-15' }
       });
+      
+      console.log(`📊 Current GHL stock for ${item.name}: ${priceResp.data.availableQuantity}`);
       const newQty = priceResp.data.availableQuantity - item.quantity;
+      console.log(`📊 New GHL stock for ${item.name}: ${newQty} (reduced by ${item.quantity})`);
+      
       await axios.put(`${BASE_URL}/products/${item.id}/prices/${item.priceId}`, {
         availableQuantity: newQty
       }, {
         headers: { Authorization: `Bearer ${token}`, 'Version': '2021-04-15' }
       });
+
+      // Check if stock is low and needs alert
+      const LOW_STOCK_THRESHOLD = 20;
+      if (newQty <= LOW_STOCK_THRESHOLD && newQty > 0) {
+        lowStockItems.push({
+          name: item.name,
+          quantity: newQty,
+          threshold: LOW_STOCK_THRESHOLD
+        });
+      }
+      
+      console.log(`📦 Updated GHL ${item.name}: ${priceResp.data.availableQuantity} → ${newQty} units`);
     }
-    res.json({ success: true });
+
+    // Send low stock alerts for items that need them
+    for (const lowStockItem of lowStockItems) {
+      await sendLowStockAlert(lowStockItem.name, lowStockItem.quantity, lowStockItem.threshold);
+    }
+
+    res.json({ 
+      success: true, 
+      method: 'ghl',
+      lowStockAlerts: lowStockItems.length,
+      message: lowStockItems.length > 0 ? 
+        `GHL inventory updated. ${lowStockItems.length} low stock alert(s) sent.` : 
+        'GHL inventory updated successfully.'
+    });
   } catch (err) {
-    console.error('Update-inventory failed:', err.response?.data || err.message, err.stack);
+    console.error('GHL Update-inventory failed:', err.response?.data || err.message, err.stack);
     if (err.response?.status === 401) {
       try {
         token = await refreshAccessToken();
+        const lowStockItems = []; // Track items that need alerts
+        
         for (const item of cart) {
           const pr = await axios.get(`${BASE_URL}/products/${item.id}/prices/${item.priceId}`, {
             headers: { Authorization: `Bearer ${token}`, 'Version': '2021-04-15' }
@@ -314,8 +502,30 @@ app.post('/update-inventory', async (req, res) => {
           }, {
             headers: { Authorization: `Bearer ${token}`, 'Version': '2021-04-15' }
           });
+
+          // Check if stock is low and needs alert
+          const LOW_STOCK_THRESHOLD = 20;
+          if (newQty <= LOW_STOCK_THRESHOLD && newQty > 0) {
+            lowStockItems.push({
+              name: item.name,
+              quantity: newQty,
+              threshold: LOW_STOCK_THRESHOLD
+            });
+          }
         }
-        return res.json({ success: true });
+
+        // Send low stock alerts for items that need them
+        for (const lowStockItem of lowStockItems) {
+          await sendLowStockAlert(lowStockItem.name, lowStockItem.quantity, lowStockItem.threshold);
+        }
+
+        return res.json({ 
+          success: true, 
+          lowStockAlerts: lowStockItems.length,
+          message: lowStockItems.length > 0 ? 
+            `Inventory updated. ${lowStockItems.length} low stock alert(s) sent.` : 
+            'Inventory updated successfully.'
+        });
       } catch (_) {
         console.error('Refresh+update failed');
       }
@@ -359,6 +569,153 @@ app.post('/log-payment', async (req, res) => {
   } catch (err) {
     console.error('Log payment error:', err.message);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Handle walk-in to membership upgrade (phone number conflict resolution)
+app.post('/upgrade-walkin-to-membership', async (req, res) => {
+  const { phoneNumber, customerData, membershipType } = req.body;
+  let token = await getAccessToken();
+  
+  try {
+    // First, search for existing contact with this phone number
+    const searchResponse = await axios.get(`${BASE_URL}/contacts/search?query=${phoneNumber}`, {
+      headers: { Authorization: `Bearer ${token}`, 'Version': '2021-04-15' }
+    });
+
+    let contactId = null;
+    let existingContact = null;
+
+    if (searchResponse.data.contacts && searchResponse.data.contacts.length > 0) {
+      // Find exact phone match
+      existingContact = searchResponse.data.contacts.find(contact => 
+        contact.phone === phoneNumber || 
+        contact.phone === phoneNumber.replace(/\D/g, '') || // Remove non-digits
+        contact.phone.replace(/\D/g, '') === phoneNumber.replace(/\D/g, '')
+      );
+      
+      if (existingContact) {
+        contactId = existingContact.id;
+        console.log(`📞 Found existing contact for ${phoneNumber}: ${existingContact.firstName} ${existingContact.lastName}`);
+        
+        // Update existing contact to membership status
+        const updateData = {
+          ...customerData,
+          phone: phoneNumber,
+          tags: [...(existingContact.tags || []), 'membership', membershipType],
+          customFields: {
+            ...(existingContact.customFields || {}),
+            membershipType: membershipType,
+            membershipStartDate: new Date().toISOString(),
+            customerType: 'member',
+            upgradeDate: new Date().toISOString(),
+            previousType: 'walkin'
+          }
+        };
+
+        await axios.put(`${BASE_URL}/contacts/${contactId}`, updateData, {
+          headers: { Authorization: `Bearer ${token}`, 'Version': '2021-04-15' }
+        });
+
+        console.log(`✅ Successfully upgraded walk-in customer to ${membershipType} membership`);
+        
+        return res.json({
+          success: true,
+          message: 'Walk-in customer successfully upgraded to membership',
+          contactId: contactId,
+          membershipType: membershipType,
+          action: 'upgraded_existing'
+        });
+      }
+    }
+
+    // If no existing contact found, create new membership contact
+    const newContactData = {
+      ...customerData,
+      phone: phoneNumber,
+      tags: ['membership', membershipType],
+      customFields: {
+        membershipType: membershipType,
+        membershipStartDate: new Date().toISOString(),
+        customerType: 'member'
+      }
+    };
+
+    const createResponse = await axios.post(`${BASE_URL}/contacts`, newContactData, {
+      headers: { Authorization: `Bearer ${token}`, 'Version': '2021-04-15' }
+    });
+
+    console.log(`✅ Created new membership contact for ${phoneNumber}`);
+    
+    res.json({
+      success: true,
+      message: 'New membership created successfully',
+      contactId: createResponse.data.contact.id,
+      membershipType: membershipType,
+      action: 'created_new'
+    });
+
+  } catch (err) {
+    console.error('Walk-in to membership upgrade failed:', err.response?.data || err.message);
+    
+    if (err.response?.status === 401) {
+      try {
+        token = await refreshAccessToken();
+        // Retry the operation with refreshed token
+        // ... (repeat the logic above)
+        return res.status(500).json({ 
+          error: 'Authentication failed. Please try again.',
+          details: 'Token refresh attempted but operation still failed.'
+        });
+      } catch (refreshErr) {
+        console.error('Token refresh failed during upgrade operation');
+      }
+    }
+    
+    res.status(500).json({ 
+      error: 'Failed to upgrade walk-in to membership',
+      details: err.response?.data || err.message
+    });
+  }
+});
+
+// Check contact exists and get details (for preventing conflicts)
+app.get('/check-contact/:phone', async (req, res) => {
+  const { phone } = req.params;
+  let token = await getAccessToken();
+  
+  try {
+    const searchResponse = await axios.get(`${BASE_URL}/contacts/search?query=${phone}`, {
+      headers: { Authorization: `Bearer ${token}`, 'Version': '2021-04-15' }
+    });
+
+    if (searchResponse.data.contacts && searchResponse.data.contacts.length > 0) {
+      const contact = searchResponse.data.contacts.find(c => 
+        c.phone === phone || 
+        c.phone === phone.replace(/\D/g, '') || 
+        c.phone.replace(/\D/g, '') === phone.replace(/\D/g, '')
+      );
+      
+      if (contact) {
+        return res.json({
+          exists: true,
+          contact: {
+            id: contact.id,
+            name: `${contact.firstName || ''} ${contact.lastName || ''}`.trim(),
+            phone: contact.phone,
+            email: contact.email,
+            tags: contact.tags || [],
+            customerType: contact.customFields?.customerType || 'unknown',
+            membershipType: contact.customFields?.membershipType || null
+          }
+        });
+      }
+    }
+
+    res.json({ exists: false });
+  } catch (err) {
+    console.error('Contact check failed:', err.response?.data || err.message);
+    res.status(500).json({ error: 'Failed to check contact' });
   }
 });
 
