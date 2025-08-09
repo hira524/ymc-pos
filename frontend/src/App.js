@@ -409,6 +409,8 @@ function App() {
   const [showOtherProductCalculator, setShowOtherProductCalculator] = useState(false);
   const [otherProductAmount, setOtherProductAmount] = useState('');
   const [otherProductName, setOtherProductName] = useState('');
+  const [calculatorExpression, setCalculatorExpression] = useState('');
+  const [calculatorValues, setCalculatorValues] = useState([]);
 
   // Dynamic backend URL for different environments
   const getBackendUrl = () => {
@@ -868,7 +870,9 @@ function App() {
   const openOtherProductCalculator = () => {
     setShowOtherProductCalculator(true);
     setOtherProductAmount('');
-    setOtherProductName('');
+    setOtherProductName('Custom');
+    setCalculatorExpression('');
+    setCalculatorValues([]);
   };
 
   const closeOtherProductCalculator = () => {
@@ -908,6 +912,43 @@ function App() {
 
   const addQuickAmount = (amount) => {
     setOtherProductAmount(amount.toString());
+  };
+
+  // Calculator Functions for Other Product
+  const addToCalculator = (value) => {
+    setCalculatorExpression(prev => prev + value);
+  };
+
+  const calculateTotal = () => {
+    try {
+      // Simple calculator that only handles addition for safety
+      const values = calculatorExpression.split('+').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+      const result = values.reduce((sum, val) => sum + val, 0);
+      
+      if (isNaN(result) || !isFinite(result)) {
+        showAlert('**Invalid Calculation**\n\nPlease check your expression and try again.', 'warning');
+        return;
+      }
+      setOtherProductAmount(result.toFixed(2));
+      setCalculatorExpression('');
+    } catch (error) {
+      showAlert('**Invalid Expression**\n\nPlease check your calculation and try again.', 'warning');
+    }
+  };
+
+  const clearCalculator = () => {
+    setCalculatorExpression('');
+    setOtherProductAmount('');
+  };
+
+  const addValueToCalculator = (value) => {
+    if (calculatorExpression === '' || /[+\-*/]$/.test(calculatorExpression)) {
+      // If expression is empty or ends with operator, add the value
+      setCalculatorExpression(prev => prev + value);
+    } else {
+      // If expression doesn't end with operator, add a plus sign first
+      setCalculatorExpression(prev => prev + '+' + value);
+    }
   };
 
   const updateProductQuantity = async (itemId, newQuantity) => {
@@ -1188,7 +1229,7 @@ function App() {
             <h1 className="header-title">🏪 YMC Desktop POS</h1>
             <p className="header-subtitle">Point of Sale System</p>
           </div>
-          <button
+          {/*<button
             className="inventory-manager-btn"
             onClick={() => openInventoryManager('view')}
             style={{
@@ -1216,7 +1257,7 @@ function App() {
             }}
           >
             📦 Manage Inventory
-          </button>
+          </button>*/}
         </div>
       </header>
 
@@ -1334,7 +1375,7 @@ function App() {
           <div className="cart-total-section" style={{ flexShrink: 0, padding: 'var(--spacing-4) var(--spacing-6)' }}>
             {/* Discount Controls */}
             <div className="discount-controls" style={{ marginBottom: 'var(--spacing-4)' }}>
-              <div style={{ display: 'flex', gap: 'var(--spacing-2)', marginBottom: 'var(--spacing-3)' }}>
+              {/*<div style={{ display: 'flex', gap: 'var(--spacing-2)', marginBottom: 'var(--spacing-3)' }}>
                 {!discountApplied ? (
                   <button 
                     className="discount-btn btn-primary"
@@ -1380,7 +1421,7 @@ function App() {
                     </button>
                   </div>
                 )}
-              </div>
+              </div>*/}
               
               {discountApplied && (
                 <div className="discount-summary">
@@ -1655,7 +1696,7 @@ function App() {
       )}
 
       {/* Inventory Management Popup */}
-      {showInventoryManager && (
+     {/* {showInventoryManager && (
         <div className="discount-popup-overlay animate-fade-in" style={{
           position: 'fixed',
           top: 0,
@@ -1942,7 +1983,7 @@ function App() {
             </div>
           </div>
         </div>
-      )}
+      )}*/}
 
       {/* Other Product Calculator Popup */}
       {showOtherProductCalculator && (
@@ -1965,13 +2006,16 @@ function App() {
             maxWidth: '500px',
             maxHeight: '80vh',
             overflow: 'hidden',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            display: 'flex',
+            flexDirection: 'column'
           }}>
             <div className="popup-header" style={{ 
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               color: 'white',
               padding: 'var(--spacing-4)',
-              borderRadius: '12px 12px 0 0'
+              borderRadius: '12px 12px 0 0',
+              flexShrink: 0
             }}>
               <h3 style={{ margin: 0, fontSize: 'var(--font-size-xl)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '10px' }}>
                 🧮 Other Product Calculator
@@ -1981,7 +2025,12 @@ function App() {
               </p>
             </div>
 
-            <div style={{ padding: 'var(--spacing-6)' }}>
+            <div style={{ 
+              padding: 'var(--spacing-6)', 
+              overflow: 'auto', 
+              flex: 1,
+              maxHeight: 'calc(80vh - 120px)' 
+            }}>
               {/* Product Name Input */}
               <div style={{ marginBottom: 'var(--spacing-4)' }}>
                 <label style={{ 
@@ -2012,7 +2061,7 @@ function App() {
                 />
               </div>
 
-              {/* Quick Amount Buttons */}
+              {/* Calculator Section */}
               <div style={{ marginBottom: 'var(--spacing-4)' }}>
                 <label style={{ 
                   display: 'block', 
@@ -2020,12 +2069,193 @@ function App() {
                   fontWeight: '600',
                   color: 'var(--text-color)'
                 }}>
-                  Quick Amounts
+                  Calculator (Add Multiple Amounts)
+                </label>
+                
+                {/* Calculator Expression Display */}
+                {calculatorExpression && (
+                  <div style={{
+                    backgroundColor: 'var(--background-secondary)',
+                    padding: 'var(--spacing-2)',
+                    borderRadius: 'var(--border-radius)',
+                    marginBottom: 'var(--spacing-2)',
+                    fontSize: 'var(--font-size-sm)',
+                    fontFamily: 'monospace',
+                    border: '1px solid var(--border-color)'
+                  }}>
+                    <strong>Expression:</strong> {calculatorExpression}
+                  </div>
+                )}
+
+                {/* Quick Amount Buttons for Calculator */}
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(4, 1fr)', 
+                  gap: 'var(--spacing-2)',
+                  marginBottom: 'var(--spacing-2)' 
+                }}>
+                  {[1, 5, 10, 20, 50, 100, 200, 500].map(amount => (
+                    <button
+                      key={amount}
+                      onClick={() => addValueToCalculator(amount)}
+                      style={{
+                        padding: '8px',
+                        border: '2px solid var(--primary-color)',
+                        borderRadius: 'var(--border-radius)',
+                        backgroundColor: 'transparent',
+                        color: 'var(--primary-color)',
+                        fontSize: 'var(--font-size-sm)',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.backgroundColor = 'var(--primary-color)';
+                        e.target.style.color = 'white';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.backgroundColor = 'transparent';
+                        e.target.style.color = 'var(--primary-color)';
+                      }}
+                    >
+                      +${amount}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Calculator Controls */}
+                <div style={{ display: 'flex', gap: 'var(--spacing-2)' }}>
+                  <button
+                    onClick={calculateTotal}
+                    disabled={!calculatorExpression}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      border: 'none',
+                      borderRadius: 'var(--border-radius)',
+                      backgroundColor: calculatorExpression ? 'var(--success-color)' : 'var(--gray-300)',
+                      color: 'white',
+                      fontSize: 'var(--font-size-sm)',
+                      fontWeight: '600',
+                      cursor: calculatorExpression ? 'pointer' : 'not-allowed',
+                      transition: 'all 0.2s ease',
+                      opacity: calculatorExpression ? 1 : 0.6
+                    }}
+                  >
+                    🧮 Calculate Total
+                  </button>
+                  <button
+                    onClick={clearCalculator}
+                    disabled={!calculatorExpression && !otherProductAmount}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      border: 'none',
+                      borderRadius: 'var(--border-radius)',
+                      backgroundColor: (calculatorExpression || otherProductAmount) ? 'var(--warning-color)' : 'var(--gray-300)',
+                      color: 'white',
+                      fontSize: 'var(--font-size-sm)',
+                      fontWeight: '600',
+                      cursor: (calculatorExpression || otherProductAmount) ? 'pointer' : 'not-allowed',
+                      transition: 'all 0.2s ease',
+                      opacity: (calculatorExpression || otherProductAmount) ? 1 : 0.6
+                    }}
+                  >
+                    🗑️ Clear
+                  </button>
+                </div>
+
+                {/* Manual Input for Custom Values */}
+                <div style={{ 
+                  marginTop: 'var(--spacing-3)',
+                  padding: 'var(--spacing-3)',
+                  backgroundColor: 'var(--background-secondary)',
+                  borderRadius: 'var(--border-radius)',
+                  border: '1px solid var(--border-color)'
+                }}>
+                  <label style={{ 
+                    display: 'block', 
+                    marginBottom: 'var(--spacing-2)', 
+                    fontWeight: '600',
+                    color: 'var(--text-color)',
+                    fontSize: 'var(--font-size-sm)'
+                  }}>
+                    Add Custom Amount
+                  </label>
+                  <div style={{ display: 'flex', gap: 'var(--spacing-2)' }}>
+                    <div style={{ position: 'relative', flex: 1 }}>
+                      <span style={{
+                        position: 'absolute',
+                        left: '8px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        fontSize: 'var(--font-size-sm)',
+                        fontWeight: '600',
+                        color: 'var(--text-color)'
+                      }}>$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        style={{
+                          width: '100%',
+                          padding: '8px 8px 8px 24px',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: 'var(--border-radius)',
+                          fontSize: 'var(--font-size-sm)',
+                          outline: 'none',
+                          boxSizing: 'border-box'
+                        }}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && e.target.value) {
+                            addValueToCalculator(parseFloat(e.target.value));
+                            e.target.value = '';
+                          }
+                        }}
+                      />
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        const input = e.target.parentElement.querySelector('input');
+                        if (input.value) {
+                          addValueToCalculator(parseFloat(input.value));
+                          input.value = '';
+                        }
+                      }}
+                      style={{
+                        padding: '8px 16px',
+                        border: 'none',
+                        borderRadius: 'var(--border-radius)',
+                        backgroundColor: 'var(--primary-color)',
+                        color: 'white',
+                        fontSize: 'var(--font-size-sm)',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      ➕ Add
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Direct Amount Input */}
+             {/* <div style={{ marginBottom: 'var(--spacing-4)' }}>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: 'var(--spacing-2)', 
+                  fontWeight: '600',
+                  color: 'var(--text-color)'
+                }}>
+                  Or Set Direct Amount
                 </label>
                 <div style={{ 
                   display: 'grid', 
                   gridTemplateColumns: 'repeat(4, 1fr)', 
-                  gap: 'var(--spacing-2)' 
+                  gap: 'var(--spacing-2)',
+                  marginBottom: 'var(--spacing-2)' 
                 }}>
                   {[1, 5, 10, 20, 50, 100, 200, 500].map(amount => (
                     <button
@@ -2033,10 +2263,10 @@ function App() {
                       onClick={() => addQuickAmount(amount)}
                       style={{
                         padding: '8px',
-                        border: '2px solid var(--primary-color)',
+                        border: '2px solid var(--secondary-color)',
                         borderRadius: 'var(--border-radius)',
-                        backgroundColor: otherProductAmount === amount.toString() ? 'var(--primary-color)' : 'transparent',
-                        color: otherProductAmount === amount.toString() ? 'white' : 'var(--primary-color)',
+                        backgroundColor: otherProductAmount === amount.toString() ? 'var(--secondary-color)' : 'transparent',
+                        color: otherProductAmount === amount.toString() ? 'white' : 'var(--secondary-color)',
                         fontSize: 'var(--font-size-sm)',
                         fontWeight: '600',
                         cursor: 'pointer',
@@ -2044,14 +2274,14 @@ function App() {
                       }}
                       onMouseEnter={(e) => {
                         if (otherProductAmount !== amount.toString()) {
-                          e.target.style.backgroundColor = 'var(--primary-color)';
+                          e.target.style.backgroundColor = 'var(--secondary-color)';
                           e.target.style.color = 'white';
                         }
                       }}
                       onMouseLeave={(e) => {
                         if (otherProductAmount !== amount.toString()) {
                           e.target.style.backgroundColor = 'transparent';
-                          e.target.style.color = 'var(--primary-color)';
+                          e.target.style.color = 'var(--secondary-color)';
                         }
                       }}
                     >
@@ -2059,7 +2289,7 @@ function App() {
                     </button>
                   ))}
                 </div>
-              </div>
+              </div>*/}
 
               {/* Custom Amount Input */}
               <div style={{ marginBottom: 'var(--spacing-4)' }}>
