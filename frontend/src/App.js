@@ -285,7 +285,7 @@ const CashCalculatorPopup = ({ isVisible, orderTotal, onComplete, onCancel }) =>
           </div>
 
           {/* Calculator Keypad */}
-          <div className="calculator-keypad">
+          {/*<div className="calculator-keypad">
             <div className="keypad-row">
               <button className="keypad-btn" onClick={() => handleNumberClick('7')}>7</button>
               <button className="keypad-btn" onClick={() => handleNumberClick('8')}>8</button>
@@ -309,7 +309,7 @@ const CashCalculatorPopup = ({ isVisible, orderTotal, onComplete, onCancel }) =>
             <div className="keypad-row">
               <button className="keypad-btn keypad-clear" onClick={handleClear}>Clear All</button>
             </div>
-          </div>
+          </div>*/}
 
           {/* Change Calculation Display */}
           {receivedAmount && (
@@ -404,6 +404,13 @@ function App() {
   const [otherProductAmount, setOtherProductAmount] = useState('');
   const [otherProductName, setOtherProductName] = useState('');
   const [calculatorExpression, setCalculatorExpression] = useState('');
+  
+  // Standalone Calculator States
+  const [showStandaloneCalculator, setShowStandaloneCalculator] = useState(false);
+  const [calculatorDisplay, setCalculatorDisplay] = useState('0');
+  const [calculatorPrevValue, setCalculatorPrevValue] = useState(null);
+  const [calculatorOperation, setCalculatorOperation] = useState(null);
+  const [calculatorWaitingForNewValue, setCalculatorWaitingForNewValue] = useState(false);
 
   // Dynamic backend URL for different environments
   const getBackendUrl = () => {
@@ -533,6 +540,98 @@ function App() {
         showAlert(`**Inventory Loading Failed**\n\nUnable to load product catalog from server.\n\n**Error Details:**\n${e.response?.data?.error || e.message}\n\n**Troubleshooting:**\n• Check server connection\n• Verify backend is running\n• Contact system administrator\n\n*POS system may not function properly without inventory.*`, 'error');
       });
   }, [BACKEND_URL]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keyboard support for standalone calculator
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (!showStandaloneCalculator) return;
+      
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        // Transfer calculator result
+        const result = parseFloat(calculatorDisplay);
+        if (!isNaN(result) && result >= 0) {
+          setOtherProductAmount(result.toFixed(2));
+          setShowStandaloneCalculator(false);
+          setCalculatorDisplay('0');
+          setCalculatorPrevValue(null);
+          setCalculatorOperation(null);
+          setCalculatorWaitingForNewValue(false);
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowStandaloneCalculator(false);
+        setCalculatorDisplay('0');
+        setCalculatorPrevValue(null);
+        setCalculatorOperation(null);
+        setCalculatorWaitingForNewValue(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keyboard event handler for calculator
+  useEffect(() => {
+    const handleKeyPress = (event) => {
+      if (!showStandaloneCalculator) return;
+
+      const { key } = event;
+      
+      // Prevent default behavior for calculator keys
+      if (/^[0-9+\-*/.=]$/.test(key) || key === 'Enter' || key === 'Escape' || key === 'Backspace') {
+        event.preventDefault();
+      }
+
+      // Handle numeric input
+      if (/^[0-9]$/.test(key)) {
+        inputCalculatorDigit(parseInt(key));
+      }
+      // Handle decimal point
+      else if (key === '.') {
+        inputCalculatorDot();
+      }
+      // Handle operations
+      else if (key === '+') {
+        performCalculatorOperation('+');
+      }
+      else if (key === '-') {
+        performCalculatorOperation('-');
+      }
+      else if (key === '*') {
+        performCalculatorOperation('*');
+      }
+      else if (key === '/') {
+        performCalculatorOperation('/');
+      }
+      else if (key === '=') {
+        performCalculatorOperation('=');
+      }
+      else if (key === 'Enter') {
+        // First perform the calculation if there's a pending operation, then transfer
+        if (calculatorOperation && calculatorPrevValue !== null && !calculatorWaitingForNewValue) {
+          performCalculatorOperation('=');
+        }
+        transferCalculatorResult();
+      }
+      // Handle clear and backspace
+      else if (key === 'Escape') {
+        clearCalculatorDisplay();
+      }
+      else if (key === 'Backspace') {
+        backspaceCalculator();
+      }
+    };
+
+    if (showStandaloneCalculator) {
+      document.addEventListener('keydown', handleKeyPress);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyPress);
+    };
+  }, [showStandaloneCalculator]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Separate function to initialize Stripe Terminal
   const initializeStripeTerminal = async (isTestMode) => {
@@ -911,6 +1010,110 @@ function App() {
     } else {
       // If expression doesn't end with operator, add a plus sign first
       setCalculatorExpression(prev => prev + '+' + value);
+    }
+  };
+
+  // Standalone Calculator Functions
+  const openStandaloneCalculator = () => {
+    setShowStandaloneCalculator(true);
+    setCalculatorDisplay('0');
+    setCalculatorPrevValue(null);
+    setCalculatorOperation(null);
+    setCalculatorWaitingForNewValue(false);
+  };
+
+  const closeStandaloneCalculator = () => {
+    setShowStandaloneCalculator(false);
+    setCalculatorDisplay('0');
+    setCalculatorPrevValue(null);
+    setCalculatorOperation(null);
+    setCalculatorWaitingForNewValue(false);
+  };
+
+  const inputCalculatorDigit = (digit) => {
+    if (calculatorWaitingForNewValue) {
+      setCalculatorDisplay(String(digit));
+      setCalculatorWaitingForNewValue(false);
+    } else {
+      const newDisplay = calculatorDisplay === '0' ? String(digit) : calculatorDisplay + digit;
+      // Limit display to 12 characters to prevent overflow
+      if (newDisplay.length <= 12) {
+        setCalculatorDisplay(newDisplay);
+      }
+    }
+  };
+
+  const inputCalculatorDot = () => {
+    if (calculatorWaitingForNewValue) {
+      setCalculatorDisplay('0.');
+      setCalculatorWaitingForNewValue(false);
+    } else if (calculatorDisplay.indexOf('.') === -1) {
+      setCalculatorDisplay(calculatorDisplay + '.');
+    }
+  };
+
+  const clearCalculatorDisplay = () => {
+    setCalculatorDisplay('0');
+    setCalculatorPrevValue(null);
+    setCalculatorOperation(null);
+    setCalculatorWaitingForNewValue(false);
+  };
+
+  const backspaceCalculator = () => {
+    if (calculatorDisplay.length === 1 || calculatorDisplay === '0') {
+      setCalculatorDisplay('0');
+    } else {
+      setCalculatorDisplay(calculatorDisplay.slice(0, -1));
+    }
+  };
+
+  const performCalculatorOperation = (nextOperation) => {
+    const inputValue = parseFloat(calculatorDisplay);
+
+    if (calculatorPrevValue === null) {
+      setCalculatorPrevValue(inputValue);
+    } else if (calculatorOperation && !calculatorWaitingForNewValue) {
+      const currentValue = calculatorPrevValue || 0;
+      let result;
+
+      switch (calculatorOperation) {
+        case '+':
+          result = currentValue + inputValue;
+          break;
+        case '-':
+          result = currentValue - inputValue;
+          break;
+        case '*':
+          result = currentValue * inputValue;
+          break;
+        case '/':
+          result = inputValue !== 0 ? currentValue / inputValue : 0;
+          break;
+        default:
+          return;
+      }
+
+      // Format result to avoid floating point precision issues
+      const formattedResult = parseFloat(result.toFixed(10));
+      setCalculatorDisplay(String(formattedResult));
+      setCalculatorPrevValue(formattedResult);
+    }
+
+    setCalculatorWaitingForNewValue(true);
+    setCalculatorOperation(nextOperation === '=' ? null : nextOperation);
+  };
+
+  const transferCalculatorResult = () => {
+    const result = parseFloat(calculatorDisplay);
+    if (!isNaN(result) && result >= 0) {
+      // Add the calculated result to the existing amount
+      const currentAmount = parseFloat(otherProductAmount) || 0;
+      const newTotal = currentAmount + result;
+      setOtherProductAmount(newTotal.toFixed(2));
+      closeStandaloneCalculator();
+      showAlert(`**Amount Added**\n\n$${result.toFixed(2)} has been added to the total.\n\nNew Total: $${newTotal.toFixed(2)}`, 'success');
+    } else {
+      showAlert('**Invalid Amount**\n\nPlease enter a valid calculation result.', 'warning');
     }
   };
 
@@ -2031,37 +2234,70 @@ function App() {
                 }}>
                   Custom Amount
                 </label>
-                <div style={{ position: 'relative' }}>
-                  <span style={{
-                    position: 'absolute',
-                    left: '12px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    fontSize: 'var(--font-size-lg)',
-                    fontWeight: '600',
-                    color: 'var(--text-color)'
-                  }}>$</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={otherProductAmount}
-                    onChange={(e) => setOtherProductAmount(e.target.value)}
-                    placeholder="0.00"
-                    style={{
-                      width: '100%',
-                      padding: '12px 12px 12px 32px',
-                      border: '2px solid var(--border-color)',
-                      borderRadius: 'var(--border-radius)',
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)' }}>
+                  <div style={{ position: 'relative', flex: 1 }}>
+                    <span style={{
+                      position: 'absolute',
+                      left: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
                       fontSize: 'var(--font-size-lg)',
                       fontWeight: '600',
-                      outline: 'none',
-                      transition: 'border-color 0.2s ease',
-                      boxSizing: 'border-box'
+                      color: 'var(--text-color)'
+                    }}>$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={otherProductAmount}
+                      onChange={(e) => setOtherProductAmount(e.target.value)}
+                      placeholder="0.00"
+                      style={{
+                        width: '100%',
+                        padding: '12px 12px 12px 32px',
+                        border: '2px solid var(--border-color)',
+                        borderRadius: 'var(--border-radius)',
+                        fontSize: 'var(--font-size-lg)',
+                        fontWeight: '600',
+                        outline: 'none',
+                        transition: 'border-color 0.2s ease',
+                        boxSizing: 'border-box'
+                      }}
+                      onFocus={(e) => e.target.style.borderColor = 'var(--primary-color)'}
+                      onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
+                    />
+                  </div>
+                  
+                  {/* Calculator Icon Button */}
+                  <button
+                    onClick={openStandaloneCalculator}
+                    title="Open Calculator"
+                    style={{
+                      width: '50px',
+                      height: '50px',
+                      border: '2px solid var(--primary-color)',
+                      borderRadius: 'var(--border-radius)',
+                      backgroundColor: 'transparent',
+                      color: 'var(--primary-color)',
+                      fontSize: '20px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
                     }}
-                    onFocus={(e) => e.target.style.borderColor = 'var(--primary-color)'}
-                    onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
-                  />
+                    onMouseEnter={(e) => {
+                      e.target.style.backgroundColor = 'var(--primary-color)';
+                      e.target.style.transform = 'scale(1.05)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.backgroundColor = 'transparent';
+                      e.target.style.transform = 'scale(1)';
+                    }}
+                  >
+                    🧮
+                  </button>
                 </div>
               </div>
 
@@ -2137,6 +2373,115 @@ function App() {
               >
                 🛒 Add to Cart
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Standalone Calculator Popup */}
+      {showStandaloneCalculator && (
+        <div className="discount-popup-overlay animate-fade-in">
+          <div className="calculator-popup animate-slide-up" style={{
+            backgroundColor: 'var(--background-color)',
+            borderRadius: 'var(--border-radius)',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+            overflow: 'hidden',
+            width: '320px',
+            maxWidth: '90vw',
+            maxHeight: '85vh',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            {/* Compact Header */}
+            <div style={{ 
+              background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
+              color: 'white',
+              padding: 'var(--spacing-2) var(--spacing-3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <span style={{ fontSize: 'var(--font-size-base)', fontWeight: '600' }}>
+                🧮 Calculator
+              </span>
+              <button
+                onClick={closeStandaloneCalculator}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'white',
+                  fontSize: '18px',
+                  cursor: 'pointer',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255,255,255,0.2)'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Calculator Body */}
+            <div style={{ padding: 'var(--spacing-3)', flex: 1 }}>
+              {/* Calculator Display */}
+              <div style={{
+                backgroundColor: '#2a2a2a',
+                color: '#ffffff',
+                padding: 'var(--spacing-2)',
+                borderRadius: '6px',
+                marginBottom: 'var(--spacing-2)',
+                fontFamily: 'monospace',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                textAlign: 'right',
+                minHeight: '40px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                border: '2px solid var(--border-color)',
+                wordBreak: 'break-all',
+                overflow: 'hidden'
+              }}>
+                {calculatorDisplay}
+              </div>
+
+              {/* Compact Calculator Grid */}
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(4, 1fr)', 
+                gap: '6px',
+                marginBottom: 'var(--spacing-2)'
+              }}>
+                {/* Row 1 */}
+                <button onClick={clearCalculatorDisplay} style={{ padding: '12px 8px', border: 'none', borderRadius: '6px', backgroundColor: '#ff6b6b', color: 'white', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s ease' }} onMouseEnter={(e) => e.target.style.backgroundColor = '#e55353'} onMouseLeave={(e) => e.target.style.backgroundColor = '#ff6b6b'}>C</button>
+                <button onClick={() => performCalculatorOperation('/')} style={{ padding: '12px 8px', border: 'none', borderRadius: '6px', backgroundColor: '#ffa726', color: 'white', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s ease' }} onMouseEnter={(e) => e.target.style.backgroundColor = '#ff9800'} onMouseLeave={(e) => e.target.style.backgroundColor = '#ffa726'}>÷</button>
+                <button onClick={() => performCalculatorOperation('*')} style={{ padding: '12px 8px', border: 'none', borderRadius: '6px', backgroundColor: '#ffa726', color: 'white', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s ease' }} onMouseEnter={(e) => e.target.style.backgroundColor = '#ff9800'} onMouseLeave={(e) => e.target.style.backgroundColor = '#ffa726'}>×</button>
+                <button onClick={() => performCalculatorOperation('-')} style={{ padding: '12px 8px', border: 'none', borderRadius: '6px', backgroundColor: '#ffa726', color: 'white', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s ease' }} onMouseEnter={(e) => e.target.style.backgroundColor = '#ff9800'} onMouseLeave={(e) => e.target.style.backgroundColor = '#ffa726'}>−</button>
+
+                {/* Row 2 */}
+                <button onClick={() => inputCalculatorDigit(7)} style={{ padding: '12px 8px', border: 'none', borderRadius: '6px', backgroundColor: 'var(--gray-100)', color: 'var(--text-color)', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s ease' }} onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--gray-200)'} onMouseLeave={(e) => e.target.style.backgroundColor = 'var(--gray-100)'}>7</button>
+                <button onClick={() => inputCalculatorDigit(8)} style={{ padding: '12px 8px', border: 'none', borderRadius: '6px', backgroundColor: 'var(--gray-100)', color: 'var(--text-color)', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s ease' }} onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--gray-200)'} onMouseLeave={(e) => e.target.style.backgroundColor = 'var(--gray-100)'}>8</button>
+                <button onClick={() => inputCalculatorDigit(9)} style={{ padding: '12px 8px', border: 'none', borderRadius: '6px', backgroundColor: 'var(--gray-100)', color: 'var(--text-color)', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s ease' }} onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--gray-200)'} onMouseLeave={(e) => e.target.style.backgroundColor = 'var(--gray-100)'}>9</button>
+                <button onClick={() => performCalculatorOperation('+')} style={{ padding: '12px 8px', border: 'none', borderRadius: '6px', backgroundColor: '#ffa726', color: 'white', fontSize: '16px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s ease', gridRow: 'span 2' }} onMouseEnter={(e) => e.target.style.backgroundColor = '#ff9800'} onMouseLeave={(e) => e.target.style.backgroundColor = '#ffa726'}>+</button>
+
+                {/* Row 3 */}
+                <button onClick={() => inputCalculatorDigit(4)} style={{ padding: '12px 8px', border: 'none', borderRadius: '6px', backgroundColor: 'var(--gray-100)', color: 'var(--text-color)', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s ease' }} onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--gray-200)'} onMouseLeave={(e) => e.target.style.backgroundColor = 'var(--gray-100)'}>4</button>
+                <button onClick={() => inputCalculatorDigit(5)} style={{ padding: '12px 8px', border: 'none', borderRadius: '6px', backgroundColor: 'var(--gray-100)', color: 'var(--text-color)', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s ease' }} onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--gray-200)'} onMouseLeave={(e) => e.target.style.backgroundColor = 'var(--gray-100)'}>5</button>
+                <button onClick={() => inputCalculatorDigit(6)} style={{ padding: '12px 8px', border: 'none', borderRadius: '6px', backgroundColor: 'var(--gray-100)', color: 'var(--text-color)', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s ease' }} onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--gray-200)'} onMouseLeave={(e) => e.target.style.backgroundColor = 'var(--gray-100)'}>6</button>
+
+                {/* Row 4 */}
+                <button onClick={() => inputCalculatorDigit(1)} style={{ padding: '12px 8px', border: 'none', borderRadius: '6px', backgroundColor: 'var(--gray-100)', color: 'var(--text-color)', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s ease' }} onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--gray-200)'} onMouseLeave={(e) => e.target.style.backgroundColor = 'var(--gray-100)'}>1</button>
+                <button onClick={() => inputCalculatorDigit(2)} style={{ padding: '12px 8px', border: 'none', borderRadius: '6px', backgroundColor: 'var(--gray-100)', color: 'var(--text-color)', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s ease' }} onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--gray-200)'} onMouseLeave={(e) => e.target.style.backgroundColor = 'var(--gray-100)'}>2</button>
+                <button onClick={() => inputCalculatorDigit(3)} style={{ padding: '12px 8px', border: 'none', borderRadius: '6px', backgroundColor: 'var(--gray-100)', color: 'var(--text-color)', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s ease' }} onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--gray-200)'} onMouseLeave={(e) => e.target.style.backgroundColor = 'var(--gray-100)'}>3</button>
+                <button onClick={() => performCalculatorOperation('=')} style={{ padding: '12px 8px', border: 'none', borderRadius: '6px', backgroundColor: '#2196F3', color: 'white', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s ease' }} onMouseEnter={(e) => e.target.style.backgroundColor = '#1976D2'} onMouseLeave={(e) => e.target.style.backgroundColor = '#2196F3'}>=</button>
+
+                {/* Row 5 */}
+                <button onClick={() => inputCalculatorDigit(0)} style={{ padding: '12px 8px', border: 'none', borderRadius: '6px', backgroundColor: 'var(--gray-100)', color: 'var(--text-color)', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s ease' }} onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--gray-200)'} onMouseLeave={(e) => e.target.style.backgroundColor = 'var(--gray-100)'}>0</button>
+                <button onClick={inputCalculatorDot} style={{ padding: '12px 8px', border: 'none', borderRadius: '6px', backgroundColor: 'var(--gray-100)', color: 'var(--text-color)', fontSize: '16px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s ease' }} onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--gray-200)'} onMouseLeave={(e) => e.target.style.backgroundColor = 'var(--gray-100)'}>.</button>
+                <button onClick={transferCalculatorResult} style={{ padding: '12px 8px', border: 'none', borderRadius: '6px', backgroundColor: '#4CAF50', color: 'white', fontSize: '10px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s ease', gridColumn: 'span 2' }} onMouseEnter={(e) => e.target.style.backgroundColor = '#45a049'} onMouseLeave={(e) => e.target.style.backgroundColor = '#4CAF50'}>+ ADD</button>
+              </div>
             </div>
           </div>
         </div>
