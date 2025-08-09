@@ -1212,15 +1212,15 @@
   max-height: 80vh;
   overflow: hidden;
   animation: slideIn 0.3s ease-out;
-  border: 2px solid var(--primary-500);
+  border: 2px solid var(--primary-color, #2c586e);
 }
 
 .payment-popup-header {
-  background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+  background: linear-gradient(135deg, var(--primary-color, #2c586e), var(--primary-dark, #2b576d));
   color: white;
   padding: var(--spacing-6);
   text-align: center;
-  border-bottom: 1px solid var(--primary-400);
+  border-bottom: 1px solid var(--primary-light, #8da1af);
 }
 
 .payment-popup-header h3 {
@@ -1277,7 +1277,7 @@
 
 .payment-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--primary-500), var(--primary-400));
+  background: linear-gradient(90deg, var(--primary-color, #2c586e), var(--primary-light, #8da1af));
   border-radius: var(--border-radius-full);
   transition: width 0.5s ease;
   position: relative;
@@ -1312,7 +1312,7 @@
 }
 
 .payment-cancel-btn {
-  background: var(--gray-500);
+  background: var(--gray-500, #6b7280);
   color: white;
   border: none;
   padding: var(--spacing-3) var(--spacing-8);
@@ -1321,17 +1321,40 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+  min-width: 140px;
 }
 
-.payment-cancel-btn:hover:not(:disabled) {
-  background: var(--gray-600);
+.payment-cancel-btn.cancel-available {
+  background: var(--danger-color, #dc3545);
+  border: 2px solid var(--danger-color, #dc3545);
+  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.2);
+}
+
+.payment-cancel-btn.cancel-available:hover {
+  background: #c82333;
+  border-color: #bd2130;
   transform: translateY(-1px);
+  box-shadow: var(--shadow-lg, 0 4px 6px rgba(0, 0, 0, 0.1));
+}
+
+.payment-cancel-btn.cancel-disabled {
+  background: var(--gray-300, #d1d5db);
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .payment-cancel-btn:disabled {
-  background: var(--gray-300);
+  background: var(--gray-300, #d1d5db);
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+.cancel-help-text {
+  margin: var(--spacing-3) 0 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--gray-600);
+  text-align: center;
+  line-height: 1.4;
 }
 
 /* Payment Popup Animations */

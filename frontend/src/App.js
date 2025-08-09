@@ -78,11 +78,22 @@ const PaymentProcessingPopup = ({ isVisible, step, progress, onCancel }) => {
     }
   };
 
+  const canCancel = (step) => {
+    return step === 'initializing' || step === 'waiting_for_card';
+  };
+
+  const getCancelButtonText = (step) => {
+    if (step === 'processing' || step === 'completing') {
+      return 'Please Wait...';
+    }
+    return 'Cancel Payment';
+  };
+
   return (
     <div className="payment-popup-overlay">
       <div className="payment-popup">
         <div className="payment-popup-header">
-          <h3>💳 Card Payment</h3>
+          <h3>💳 Card Payment Processing</h3>
         </div>
         
         <div className="payment-popup-body">
@@ -94,12 +105,24 @@ const PaymentProcessingPopup = ({ isVisible, step, progress, onCancel }) => {
             <h4>{getStepMessage(step)}</h4>
             {step === 'waiting_for_card' && (
               <p className="payment-instruction">
-                Insert, tap, or swipe your card on the payment terminal
+                Insert, tap, or swipe your card on the payment terminal.<br/>
+                <strong>You can still cancel at this point.</strong>
               </p>
             )}
             {step === 'processing' && (
               <p className="payment-instruction">
-                Please wait while we process your payment
+                Please wait while we process your payment.<br/>
+                <strong>Do not remove your card yet.</strong>
+              </p>
+            )}
+            {step === 'initializing' && (
+              <p className="payment-instruction">
+                Setting up secure payment connection...
+              </p>
+            )}
+            {step === 'completing' && (
+              <p className="payment-instruction">
+                Almost done! Finalizing your transaction...
               </p>
             )}
           </div>
@@ -117,12 +140,17 @@ const PaymentProcessingPopup = ({ isVisible, step, progress, onCancel }) => {
         
         <div className="payment-popup-footer">
           <button 
-            className="payment-cancel-btn"
+            className={`payment-cancel-btn ${canCancel(step) ? 'cancel-available' : 'cancel-disabled'}`}
             onClick={onCancel}
-            disabled={step === 'processing' || step === 'completing'}
+            disabled={!canCancel(step)}
           >
-            {step === 'processing' || step === 'completing' ? 'Please Wait...' : 'Cancel'}
+            {getCancelButtonText(step)}
           </button>
+          {canCancel(step) && (
+            <p className="cancel-help-text">
+              Cancelling will return you to the cart without charging your card.
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -141,6 +169,7 @@ function App() {
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [paymentStep, setPaymentStep] = useState('');
   const [paymentProgress, setPaymentProgress] = useState(0);
+  const [paymentSnapshot, setPaymentSnapshot] = useState({ cart: [], total: 0 });
 
   // Dynamic backend URL for different environments
   const getBackendUrl = () => {
@@ -430,13 +459,38 @@ function App() {
     showAlert(`**Payment Successful**\n\nTransaction completed using ${method.toUpperCase()} payment.\n\nThank you for your purchase!`, 'success');
   };
 
+  const completeWithSnapshot = async (method, snapshotCart, snapshotTotal) => {
+    // 1) Update inventory using snapshot data
+    await axios.post(`${BACKEND_URL}/update-inventory`, { cart: snapshotCart })
+      .catch(e => console.error('Update inv error:', e.response?.data || e.message));
+    // 2) Log payment using snapshot data
+    await axios.post(`${BACKEND_URL}/log-payment`, {
+      items: snapshotCart,
+      total: snapshotTotal,
+      method
+    }).catch(e => console.error('Log payment error:', e.response?.data || e.message));
+
+    // Clear the current cart (regardless of what's in it now)
+    setCart([]);
+    setTotal(0);
+    // Clear payment snapshot
+    setPaymentSnapshot({ cart: [], total: 0 });
+    showAlert(`**Payment Successful**\n\nTransaction completed using ${method.toUpperCase()} payment for $${snapshotTotal.toFixed(2)}.\n\nThank you for your purchase!`, 'success');
+  };
+
   const checkout = async method => {
     if (cart.length === 0) return showAlert('**Empty Cart**\n\nYour shopping cart is currently empty.\n\n*Please add some items before proceeding to checkout.*', 'warning');
     if (method === 'cash') return complete('cash');
 
     if (!terminal || !reader) return showAlert('**Payment Terminal Required**\n\nNo card payment terminal is currently connected.\n\n**For card payments:**\n• Ensure your payment device is powered on\n• Check device connectivity\n• Try reconnecting the terminal\n\n*Use cash payment as an alternative.*', 'error');
     
-    const amount = Math.round(total * 100);
+    // Capture cart state at the moment payment starts
+    const paymentCartSnapshot = [...cart];
+    const paymentTotalSnapshot = total;
+    const amount = Math.round(paymentTotalSnapshot * 100);
+    
+    // Store snapshot for consistent payment processing
+    setPaymentSnapshot({ cart: paymentCartSnapshot, total: paymentTotalSnapshot });
     
     // Show payment processing popup
     setPaymentProcessing(true);
@@ -486,7 +540,8 @@ function App() {
         setPaymentProgress(100);
         setTimeout(() => {
           setPaymentProcessing(false);
-          complete('card');
+          // Use the snapshot data for completion, not current cart
+          completeWithSnapshot('card', paymentCartSnapshot, paymentTotalSnapshot);
         }, 500);
       }, 1000);
 
@@ -498,13 +553,25 @@ function App() {
     }
   };
 
-  const cancelPayment = () => {
-    setPaymentProcessing(false);
-    setPaymentStep('');
-    setPaymentProgress(0);
-    // Optionally cancel any ongoing terminal operations
-    if (terminal) {
-      terminal.cancelCollectPaymentMethod().catch(console.error);
+  const cancelPayment = async () => {
+    try {
+      // Cancel any ongoing terminal operations
+      if (terminal && (paymentStep === 'waiting_for_card' || paymentStep === 'processing')) {
+        console.log('🚫 Cancelling terminal payment collection...');
+        await terminal.cancelCollectPaymentMethod();
+        showAlert('**Payment Cancelled**\n\nCard payment has been cancelled successfully.\n\n*You can try again or use cash payment.*', 'info');
+      }
+    } catch (error) {
+      console.error('Cancel payment error:', error);
+      // Even if cancellation fails, we still want to reset the UI
+      showAlert('**Payment Cancelled**\n\nPayment cancelled. If you were in the middle of a transaction, please wait a moment before trying again.\n\n*Terminal may need a moment to reset.*', 'warning');
+    } finally {
+      // Always reset the payment state
+      setPaymentProcessing(false);
+      setPaymentStep('');
+      setPaymentProgress(0);
+      // Clear payment snapshot
+      setPaymentSnapshot({ cart: [], total: 0 });
     }
   };
 
