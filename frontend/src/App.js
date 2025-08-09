@@ -157,6 +157,224 @@ const PaymentProcessingPopup = ({ isVisible, step, progress, onCancel }) => {
   );
 };
 
+// Cash Calculator Popup Component
+const CashCalculatorPopup = ({ isVisible, orderTotal, onComplete, onCancel }) => {
+  const [amountReceived, setAmountReceived] = useState('');
+  const [error, setError] = useState('');
+
+  if (!isVisible) return null;
+
+  const receivedAmount = parseFloat(amountReceived) || 0;
+  const changeAmount = receivedAmount - orderTotal;
+  const isValidPayment = receivedAmount >= orderTotal;
+
+  const handleAmountChange = (value) => {
+    // Remove any non-numeric characters except decimal point
+    const cleanValue = value.replace(/[^\d.]/g, '');
+    
+    // Ensure only one decimal point
+    const parts = cleanValue.split('.');
+    if (parts.length > 2) {
+      return;
+    }
+    
+    // Limit to 2 decimal places
+    if (parts[1] && parts[1].length > 2) {
+      return;
+    }
+    
+    setAmountReceived(cleanValue);
+    setError('');
+  };
+
+  const handleNumberClick = (num) => {
+    if (amountReceived.includes('.') && num === '.') return;
+    if (amountReceived.length >= 10) return;
+    
+    const newAmount = amountReceived + num;
+    handleAmountChange(newAmount);
+  };
+
+  const handleClear = () => {
+    setAmountReceived('');
+    setError('');
+  };
+
+  const handleBackspace = () => {
+    setAmountReceived(amountReceived.slice(0, -1));
+    setError('');
+  };
+
+  const handleComplete = () => {
+    if (!isValidPayment) {
+      setError('Amount received must be greater than or equal to the total');
+      return;
+    }
+    onComplete(receivedAmount, changeAmount);
+    setAmountReceived('');
+    setError('');
+  };
+
+  const handleCancel = () => {
+    setAmountReceived('');
+    setError('');
+    onCancel();
+  };
+
+  // Smart quick amount suggestions
+  const quickAmounts = [
+    orderTotal, // Exact amount
+    Math.ceil(orderTotal / 5) * 5, // Round to next $5
+    Math.ceil(orderTotal / 10) * 10, // Round to next $10
+    Math.ceil(orderTotal / 20) * 20, // Round to next $20
+    50, 100 // Common bills
+  ].filter((amount, index, arr) => amount >= orderTotal && arr.indexOf(amount) === index)
+   .sort((a, b) => a - b)
+   .slice(0, 4);
+
+  return (
+    <div className="cash-calculator-overlay">
+      <div className="cash-calculator">
+        <div className="cash-calculator-header">
+          <h3>💵 Cash Payment Calculator</h3>
+          <p style={{ margin: '8px 0 0 0', opacity: 0.9, fontSize: '14px' }}>
+            Calculate change for cash payments
+          </p>
+        </div>
+        
+        <div className="cash-calculator-body">
+          {/* Order Summary Section */}
+          <div className="order-summary">
+            <div className="order-total">
+              <span className="label">Order Total:</span>
+              <span className="amount">${orderTotal.toFixed(2)}</span>
+            </div>
+          </div>
+
+          {/* Amount Input Section */}
+          <div className="amount-input-section">
+            <label>Amount Received from Customer:</label>
+            <div className="amount-input-container">
+              <span className="currency-symbol">$</span>
+              <input
+                type="text"
+                value={amountReceived}
+                onChange={(e) => handleAmountChange(e.target.value)}
+                placeholder="0.00"
+                className="amount-input"
+                autoFocus
+              />
+            </div>
+            {error && <div className="error-message">⚠️ {error}</div>}
+          </div>
+
+          {/* Quick Amount Buttons */}
+          <div className="quick-amounts">
+            <div className="quick-amounts-label">💡 Quick Select Common Amounts:</div>
+            <div className="quick-amount-buttons">
+              {quickAmounts.map(amount => (
+                <button
+                  key={amount}
+                  className="quick-amount-btn"
+                  onClick={() => handleAmountChange(amount.toString())}
+                >
+                  ${amount.toFixed(2)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Calculator Keypad */}
+          <div className="calculator-keypad">
+            <div className="keypad-row">
+              <button className="keypad-btn" onClick={() => handleNumberClick('7')}>7</button>
+              <button className="keypad-btn" onClick={() => handleNumberClick('8')}>8</button>
+              <button className="keypad-btn" onClick={() => handleNumberClick('9')}>9</button>
+            </div>
+            <div className="keypad-row">
+              <button className="keypad-btn" onClick={() => handleNumberClick('4')}>4</button>
+              <button className="keypad-btn" onClick={() => handleNumberClick('5')}>5</button>
+              <button className="keypad-btn" onClick={() => handleNumberClick('6')}>6</button>
+            </div>
+            <div className="keypad-row">
+              <button className="keypad-btn" onClick={() => handleNumberClick('1')}>1</button>
+              <button className="keypad-btn" onClick={() => handleNumberClick('2')}>2</button>
+              <button className="keypad-btn" onClick={() => handleNumberClick('3')}>3</button>
+            </div>
+            <div className="keypad-row">
+              <button className="keypad-btn keypad-zero" onClick={() => handleNumberClick('0')}>0</button>
+              <button className="keypad-btn" onClick={() => handleNumberClick('.')}>•</button>
+              <button className="keypad-btn keypad-backspace" onClick={handleBackspace} title="Backspace">⌫</button>
+            </div>
+            <div className="keypad-row">
+              <button className="keypad-btn keypad-clear" onClick={handleClear}>Clear All</button>
+            </div>
+          </div>
+
+          {/* Change Calculation Display */}
+          {receivedAmount && (
+            <div className="change-calculation">
+              <div className="change-summary">
+                <div className="change-row">
+                  <span>💰 Amount Received:</span>
+                  <span className="amount-received">${receivedAmount.toFixed(2)}</span>
+                </div>
+                <div className="change-row">
+                  <span>🧾 Order Total:</span>
+                  <span className="order-total-amount">-${orderTotal.toFixed(2)}</span>
+                </div>
+                <div className="change-row change-result">
+                  <span>{changeAmount >= 0 ? '💵 Change to Give:' : '❌ Still Needed:'}</span>
+                  <span className={`change-amount ${changeAmount < 0 ? 'insufficient' : 'sufficient'}`}>
+                    ${Math.abs(changeAmount).toFixed(2)}
+                    {changeAmount < 0 && ' (Insufficient)'}
+                    {changeAmount === 0 && ' (Exact)'}
+                  </span>
+                </div>
+                {changeAmount > 0 && (
+                  <div style={{ 
+                    textAlign: 'center', 
+                    marginTop: '12px', 
+                    padding: '8px', 
+                    background: 'rgba(255, 255, 255, 0.8)', 
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: '600'
+                  }}>
+                    💡 Give the customer <strong>${changeAmount.toFixed(2)}</strong> in change
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {/* Footer with Action Buttons */}
+        <div className="cash-calculator-footer">
+          <button 
+            className="calculator-cancel-btn"
+            onClick={handleCancel}
+            title="Cancel and return to cart"
+          >
+            ← Cancel
+          </button>
+          <button 
+            className={`calculator-complete-btn ${isValidPayment ? 'enabled' : 'disabled'}`}
+            onClick={handleComplete}
+            disabled={!isValidPayment || !amountReceived}
+            title={isValidPayment ? 'Complete the cash payment' : 'Enter sufficient amount to proceed'}
+          >
+            {!amountReceived ? 'Enter Amount' : 
+             !isValidPayment ? `Need $${(orderTotal - receivedAmount).toFixed(2)} More` : 
+             changeAmount === 0 ? 'Complete Payment (Exact)' : 
+             `Complete Payment (Give $${changeAmount.toFixed(2)} Change)`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 function App() {
   const [inventory, setInventory] = useState([]);
   const [search, setSearch] = useState('');
@@ -170,6 +388,7 @@ function App() {
   const [paymentStep, setPaymentStep] = useState('');
   const [paymentProgress, setPaymentProgress] = useState(0);
   const [paymentSnapshot, setPaymentSnapshot] = useState({ cart: [], total: 0 });
+  const [cashCalculatorOpen, setCashCalculatorOpen] = useState(false);
 
   // Dynamic backend URL for different environments
   const getBackendUrl = () => {
@@ -480,7 +699,13 @@ function App() {
 
   const checkout = async method => {
     if (cart.length === 0) return showAlert('**Empty Cart**\n\nYour shopping cart is currently empty.\n\n*Please add some items before proceeding to checkout.*', 'warning');
-    if (method === 'cash') return complete('cash');
+    
+    if (method === 'cash') {
+      // Capture cart state for cash payment
+      setPaymentSnapshot({ cart: [...cart], total: total });
+      setCashCalculatorOpen(true);
+      return;
+    }
 
     if (!terminal || !reader) return showAlert('**Payment Terminal Required**\n\nNo card payment terminal is currently connected.\n\n**For card payments:**\n• Ensure your payment device is powered on\n• Check device connectivity\n• Try reconnecting the terminal\n\n*Use cash payment as an alternative.*', 'error');
     
@@ -575,6 +800,27 @@ function App() {
     }
   };
 
+  // Cash Calculator Handlers
+  const handleCashCalculatorComplete = (amountReceived, changeAmount) => {
+    setCashCalculatorOpen(false);
+    
+    // Complete the payment using snapshot data
+    completeWithSnapshot('cash', paymentSnapshot.cart, paymentSnapshot.total);
+    
+    // Show change alert
+    if (changeAmount > 0) {
+      showAlert(`**Cash Payment Completed**\n\nAmount Received: $${amountReceived.toFixed(2)}\nOrder Total: $${paymentSnapshot.total.toFixed(2)}\n\n💰 **Change to Give: $${changeAmount.toFixed(2)}**\n\nThank you for your purchase!`, 'success');
+    } else {
+      showAlert(`**Cash Payment Completed**\n\nExact amount received: $${amountReceived.toFixed(2)}\n\nThank you for your purchase!`, 'success');
+    }
+  };
+
+  const handleCashCalculatorCancel = () => {
+    setCashCalculatorOpen(false);
+    setPaymentSnapshot({ cart: [], total: 0 });
+    showAlert('**Cash Payment Cancelled**\n\nReturning to cart.', 'info');
+  };
+
   return (
     <div className="app">
       {/* Custom Alert Components */}
@@ -586,6 +832,14 @@ function App() {
         step={paymentStep}
         progress={paymentProgress}
         onCancel={cancelPayment}
+      />
+      
+      {/* Cash Calculator Popup */}
+      <CashCalculatorPopup
+        isVisible={cashCalculatorOpen}
+        orderTotal={paymentSnapshot.total}
+        onComplete={handleCashCalculatorComplete}
+        onCancel={handleCashCalculatorCancel}
       />
       
       {/* Theme Toggle */}
