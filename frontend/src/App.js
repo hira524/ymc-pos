@@ -777,6 +777,53 @@ function App() {
     showAlert(`**Payment Successful**\n\nTransaction completed using ${method.toUpperCase()} payment for $${snapshotTotal.toFixed(2)}.\n\nThank you for your purchase!`, 'success');
   };
 
+  // Cart Management Functions
+  const cancelCart = () => {
+    if (cart.length === 0) {
+      showAlert('**Cart is Empty**\n\nThere are no items to cancel.', 'info');
+      return;
+    }
+
+    // Show confirmation dialog
+    const cartItemsText = cart.map(item => `• ${item.name} (${item.quantity}x) - $${(item.price * item.quantity).toFixed(2)}`).join('\n');
+    const totalText = `\n\nTotal: $${total.toFixed(2)}`;
+    
+    if (window.confirm(`Are you sure you want to cancel this cart?\n\n${cartItemsText}${totalText}\n\nThis action cannot be undone.`)) {
+      // Clear cart and reset all related state
+      setCart([]);
+      setTotal(0);
+      setDiscountApplied(false);
+      setDiscountAmount(0);
+      setDiscountType('');
+      setPaymentSnapshot({ cart: [], total: 0 });
+      
+      // If there's an active Stripe payment, we should cancel it too
+      if (window.terminal && window.terminal.cancelPayment) {
+        window.terminal.cancelPayment().catch(e => 
+          console.error('Error cancelling Stripe payment:', e)
+        );
+      }
+      
+      showAlert('**Cart Cancelled**\n\nAll items have been removed from the cart.', 'info');
+    }
+  };
+
+  // Quick 10% Discount Function
+  const applyQuickDiscount = () => {
+    if (cart.length === 0) {
+      showAlert('**Cart is Empty**\n\nAdd items to cart before applying discount.', 'warning');
+      return;
+    }
+
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const discount = subtotal * 0.10; // 10% discount
+    setDiscountAmount(discount);
+    setDiscountApplied(true);
+    setDiscountType('10% Checkout Discount');
+    setTotal(subtotal - discount);
+    showAlert(`**10% Discount Applied**\n\nSubtotal: $${subtotal.toFixed(2)}\nDiscount: -$${discount.toFixed(2)}\nNew Total: $${(subtotal - discount).toFixed(2)}`, 'success');
+  };
+
   // Inventory Management Functions
   const openInventoryManager = (action, item = null) => {
     try {
@@ -1361,6 +1408,74 @@ function App() {
               <span className="total-label">Total:</span>
               <span className="total-amount">${total.toFixed(2)}</span>
             </div>
+            
+            {/* Cart Management Buttons */}
+            {cart.length > 0 && (
+              <div style={{ 
+                display: 'flex', 
+                gap: 'var(--spacing-2)', 
+                marginBottom: 'var(--spacing-3)',
+                padding: '0 var(--spacing-2)'
+              }}>
+                <button
+                  className="btn-warning"
+                  onClick={cancelCart}
+                  style={{
+                    flex: 1,
+                    padding: 'var(--spacing-2) var(--spacing-3)',
+                    fontSize: 'var(--font-size-sm)',
+                    minHeight: '36px',
+                    borderRadius: 'var(--border-radius)',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                    color: 'white',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    fontWeight: '600'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = 'translateY(-1px)';
+                    e.target.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.3)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = 'translateY(0)';
+                    e.target.style.boxShadow = 'none';
+                  }}
+                >
+                  🗑️ Cancel Cart
+                </button>
+                
+                {!discountApplied && (
+                  <button
+                    className="btn-info"
+                    onClick={applyQuickDiscount}
+                    style={{
+                      flex: 1,
+                      padding: 'var(--spacing-2) var(--spacing-3)',
+                      fontSize: 'var(--font-size-sm)',
+                      minHeight: '36px',
+                      borderRadius: 'var(--border-radius)',
+                      border: 'none',
+                      background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                      color: 'white',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      fontWeight: '600'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.transform = 'translateY(-1px)';
+                      e.target.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.transform = 'translateY(0)';
+                      e.target.style.boxShadow = 'none';
+                    }}
+                  >
+                    💸 10% Off
+                  </button>
+                )}
+              </div>
+            )}
             
             <div className="checkout-buttons" style={{ gap: 'var(--spacing-3)', marginBottom: 'var(--spacing-3)' }}>
               <button 
