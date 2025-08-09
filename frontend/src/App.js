@@ -647,35 +647,6 @@ function App() {
   };
 
   const filtered = inventory.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
-  const addToCart = i => {
-    const exists = cart.find(c => c.id === i.id);
-    if (exists) {
-      exists.quantity++;
-      setCart([...cart]);
-    } else {
-      setCart([...cart, { ...i, quantity: 1 }]);
-    }
-    setTotal(t => t + i.price);
-  };
-
-  const updateQty = (id, qty) => {
-    setCart(cart.map(c => {
-      if (c.id === id) {
-        const diff = qty - c.quantity;
-        c.quantity = qty;
-        setTotal(t => t + diff * c.price);
-      }
-      return c;
-    }));
-  };
-
-  const removeFromCart = (id) => {
-    const itemToRemove = cart.find(c => c.id === id);
-    if (itemToRemove) {
-      setTotal(t => t - (itemToRemove.price * itemToRemove.quantity));
-      setCart(cart.filter(c => c.id !== id));
-    }
-  };
 
   // Discount Functions
   const discountRoles = [
@@ -705,20 +676,6 @@ function App() {
     setTotal(subtotal);
     setShowDiscountPopup(false);
     showAlert('**Discount Removed**\n\nReturned to original pricing.', 'info');
-  };
-
-  const recalculateTotal = () => {
-    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    if (discountApplied) {
-      // Find the current discount percentage based on the discount type
-      const currentRole = discountRoles.find(role => role.name === discountType);
-      const percentage = currentRole ? currentRole.percentage : 10;
-      const discount = subtotal * (percentage / 100);
-      setDiscountAmount(discount);
-      setTotal(subtotal - discount);
-    } else {
-      setTotal(subtotal);
-    }
   };
 
   // Update total calculation in cart operations
@@ -783,33 +740,6 @@ function App() {
     } else {
       setTotal(subtotal);
     }
-  };
-
-  const complete = async method => {
-    console.log('🛒 Updating inventory for cart:', cart);
-    console.log('🛒 Cart items structure:', cart.map(item => ({ 
-      id: item.id, 
-      name: item.name, 
-      priceId: item.priceId, 
-      quantity: item.quantity,
-      price: item.price 
-    })));
-    
-    // 1) Update inventory
-    await axios.post(`${BACKEND_URL}/update-inventory`, { cart })
-      .catch(e => console.error('Update inv error:', e.response?.data || e.message));
-    // 2) Log payment
-    await axios.post(`${BACKEND_URL}/log-payment`, {
-      items: cart,
-      total,
-      method
-    }).catch(e => console.error('Log payment error:', e.response?.data || e.message));
-
-    setCart([]);
-    setTotal(0);
-    setDiscountApplied(false);
-    setDiscountAmount(0);
-    showAlert(`**Payment Successful**\n\nTransaction completed using ${method.toUpperCase()} payment.\n\nThank you for your purchase!`, 'success');
   };
 
   const completeWithSnapshot = async (method, snapshotCart, snapshotTotal) => {
