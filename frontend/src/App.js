@@ -1417,122 +1417,85 @@ function App() {
 
       {/* Discount Selection Popup */}
       {showDiscountPopup && (
-        <div className="discount-popup-overlay" style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 10000
-        }}>
-          <div className="discount-popup" style={{
-            backgroundColor: 'white',
-            borderRadius: 'var(--border-radius-lg)',
-            padding: 'var(--spacing-6)',
-            maxWidth: '500px',
-            width: '90%',
-            maxHeight: '80vh',
-            overflowY: 'auto',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-            animation: 'fadeInScale 0.2s ease-out'
-          }}>
-            <div style={{ textAlign: 'center', marginBottom: 'var(--spacing-4)' }}>
-              <h3 style={{ 
-                margin: 0, 
-                fontSize: 'var(--font-size-xl)', 
-                fontWeight: '700',
-                color: 'var(--gray-800)'
-              }}>
-                🏷️ Select Discount Type
-              </h3>
+        <div className="discount-popup-overlay">
+          <div className="discount-popup popup-medium">
+            <div className="popup-header">
+              <h3>🏷️ Select Discount Type</h3>
               <p style={{ 
                 margin: 'var(--spacing-2) 0 0 0', 
-                color: 'var(--gray-600)',
+                color: 'var(--text-secondary)',
                 fontSize: 'var(--font-size-sm)'
               }}>
                 Choose the appropriate discount for this customer
               </p>
             </div>
 
-            <div className="discount-options" style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: 'var(--spacing-3)',
-              marginBottom: 'var(--spacing-5)'
-            }}>
-              {discountRoles.map((role, index) => (
-                <button
-                  key={index}
-                  className="discount-role-btn"
-                  onClick={() => applyDiscount(role.percentage, role.name)}
-                  style={{
-                    padding: 'var(--spacing-4)',
-                    border: '2px solid',
-                    borderColor: role.color,
-                    borderRadius: 'var(--border-radius)',
-                    backgroundColor: 'white',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    textAlign: 'center',
-                    fontSize: 'var(--font-size-sm)',
-                    fontWeight: '600',
-                    position: 'relative',
-                    overflow: 'hidden'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = role.color;
-                    e.target.style.color = 'white';
-                    e.target.style.transform = 'translateY(-2px)';
-                    e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = 'white';
-                    e.target.style.color = 'inherit';
-                    e.target.style.transform = 'translateY(0)';
-                    e.target.style.boxShadow = 'none';
-                  }}
-                >
-                  <div style={{ fontSize: 'var(--font-size-2xl)', marginBottom: 'var(--spacing-1)' }}>
-                    {role.emoji}
-                  </div>
-                  <div style={{ fontWeight: '700', marginBottom: 'var(--spacing-1)' }}>
-                    {role.name}
-                  </div>
-                  <div style={{ 
-                    fontSize: 'var(--font-size-lg)', 
-                    fontWeight: '700',
-                    color: role.color
-                  }}>
-                    {role.percentage}% OFF
-                  </div>
-                </button>
-              ))}
+            <div className="popup-body">
+              <div className="discount-options" style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gap: 'var(--spacing-3)',
+                marginBottom: 'var(--spacing-4)'
+              }}>
+                {discountRoles.map((role, index) => (
+                  <button
+                    key={index}
+                    className="discount-role-btn"
+                    onClick={() => applyDiscount(role.percentage, role.name)}
+                    style={{
+                      padding: 'var(--spacing-3)',
+                      border: '2px solid',
+                      borderColor: role.color,
+                      borderRadius: 'var(--border-radius)',
+                      backgroundColor: 'white',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      textAlign: 'center',
+                      fontSize: 'var(--font-size-sm)',
+                      fontWeight: '600',
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.backgroundColor = role.color;
+                      e.target.style.color = 'white';
+                      e.target.style.transform = 'translateY(-2px)';
+                      e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.backgroundColor = 'white';
+                      e.target.style.color = 'inherit';
+                      e.target.style.transform = 'translateY(0)';
+                      e.target.style.boxShadow = 'none';
+                    }}
+                  >
+                    <div style={{ fontSize: 'var(--font-size-xl)', marginBottom: 'var(--spacing-1)' }}>
+                      {role.emoji}
+                    </div>
+                    <div style={{ fontWeight: '700', marginBottom: 'var(--spacing-1)' }}>
+                      {role.name}
+                    </div>
+                    <div style={{ 
+                      fontSize: 'var(--font-size-base)', 
+                      fontWeight: '700',
+                      color: role.color
+                    }}>
+                      {role.percentage}% OFF
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <div className="popup-footer">
               <button
                 className="btn-secondary"
                 onClick={() => setShowDiscountPopup(false)}
                 style={{
-                  padding: 'var(--spacing-3) var(--spacing-6)',
+                  padding: 'var(--spacing-3) var(--spacing-5)',
                   fontSize: 'var(--font-size-sm)',
                   fontWeight: '600',
-                  borderRadius: 'var(--border-radius)',
-                  border: '1px solid var(--gray-300)',
-                  backgroundColor: 'white',
-                  color: 'var(--gray-700)',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = 'var(--gray-50)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = 'white';
+                  flex: 1
                 }}
               >
                 ❌ Cancel
@@ -1834,37 +1797,13 @@ function App() {
 
       {/* Other Product Calculator Popup */}
       {showOtherProductCalculator && (
-        <div className="discount-popup-overlay animate-fade-in" style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 10000
-        }}>
-          <div className="other-product-calculator animate-slide-up" style={{
-            backgroundColor: 'white',
-            borderRadius: 'var(--border-radius-lg)',
-            width: '90%',
-            maxWidth: '500px',
-            maxHeight: '80vh',
-            overflow: 'hidden',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-            display: 'flex',
-            flexDirection: 'column'
-          }}>
+        <div className="discount-popup-overlay animate-fade-in">
+          <div className="other-product-calculator animate-slide-up popup-medium">
             <div className="popup-header" style={{ 
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
-              padding: 'var(--spacing-4)',
-              borderRadius: '12px 12px 0 0',
-              flexShrink: 0
+              color: 'white'
             }}>
-              <h3 style={{ margin: 0, fontSize: 'var(--font-size-xl)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 🧮 Other Product Calculator
               </h3>
               <p style={{ margin: '8px 0 0 0', opacity: 0.9, fontSize: 'var(--font-size-sm)' }}>
@@ -1872,12 +1811,7 @@ function App() {
               </p>
             </div>
 
-            <div style={{ 
-              padding: 'var(--spacing-6)', 
-              overflow: 'auto', 
-              flex: 1,
-              maxHeight: 'calc(80vh - 120px)' 
-            }}>
+            <div className="popup-body">
               {/* Product Name Input */}
               <div style={{ marginBottom: 'var(--spacing-4)' }}>
                 <label style={{ 
@@ -1937,7 +1871,7 @@ function App() {
                 {/* Quick Amount Buttons for Calculator */}
                 <div style={{ 
                   display: 'grid', 
-                  gridTemplateColumns: 'repeat(4, 1fr)', 
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(60px, 1fr))', 
                   gap: 'var(--spacing-2)',
                   marginBottom: 'var(--spacing-2)' 
                 }}>
@@ -1946,12 +1880,12 @@ function App() {
                       key={amount}
                       onClick={() => addValueToCalculator(amount)}
                       style={{
-                        padding: '8px',
+                        padding: '8px 4px',
                         border: '2px solid var(--primary-color)',
                         borderRadius: 'var(--border-radius)',
                         backgroundColor: 'transparent',
                         color: 'var(--primary-color)',
-                        fontSize: 'var(--font-size-sm)',
+                        fontSize: 'var(--font-size-xs)',
                         fontWeight: '600',
                         cursor: 'pointer',
                         transition: 'all 0.2s ease'
@@ -1971,7 +1905,7 @@ function App() {
                 </div>
 
                 {/* Calculator Controls */}
-                <div style={{ display: 'flex', gap: 'var(--spacing-2)' }}>
+                <div style={{ display: 'flex', gap: 'var(--spacing-2)', marginBottom: 'var(--spacing-3)' }}>
                   <button
                     onClick={calculateTotal}
                     disabled={!calculatorExpression}
@@ -2014,7 +1948,6 @@ function App() {
 
                 {/* Manual Input for Custom Values */}
                 <div style={{ 
-                  marginTop: 'var(--spacing-3)',
                   padding: 'var(--spacing-3)',
                   backgroundColor: 'var(--background-secondary)',
                   borderRadius: 'var(--border-radius)',
@@ -2088,56 +2021,6 @@ function App() {
                 </div>
               </div>
 
-              {/* Direct Amount Input */}
-             {/* <div style={{ marginBottom: 'var(--spacing-4)' }}>
-                <label style={{ 
-                  display: 'block', 
-                  marginBottom: 'var(--spacing-2)', 
-                  fontWeight: '600',
-                  color: 'var(--text-color)'
-                }}>
-                  Or Set Direct Amount
-                </label>
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: 'repeat(4, 1fr)', 
-                  gap: 'var(--spacing-2)',
-                  marginBottom: 'var(--spacing-2)' 
-                }}>
-                  {[1, 5, 10, 20, 50, 100, 200, 500].map(amount => (
-                    <button
-                      key={amount}
-                      onClick={() => addQuickAmount(amount)}
-                      style={{
-                        padding: '8px',
-                        border: '2px solid var(--secondary-color)',
-                        borderRadius: 'var(--border-radius)',
-                        backgroundColor: otherProductAmount === amount.toString() ? 'var(--secondary-color)' : 'transparent',
-                        color: otherProductAmount === amount.toString() ? 'white' : 'var(--secondary-color)',
-                        fontSize: 'var(--font-size-sm)',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (otherProductAmount !== amount.toString()) {
-                          e.target.style.backgroundColor = 'var(--secondary-color)';
-                          e.target.style.color = 'white';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (otherProductAmount !== amount.toString()) {
-                          e.target.style.backgroundColor = 'transparent';
-                          e.target.style.color = 'var(--secondary-color)';
-                        }
-                      }}
-                    >
-                      ${amount}
-                    </button>
-                  ))}
-                </div>
-              </div>*/}
-
               {/* Custom Amount Input */}
               <div style={{ marginBottom: 'var(--spacing-4)' }}>
                 <label style={{ 
@@ -2188,7 +2071,7 @@ function App() {
                   backgroundColor: 'var(--success-light)', 
                   padding: 'var(--spacing-3)', 
                   borderRadius: 'var(--border-radius)',
-                  marginBottom: 'var(--spacing-4)',
+                  marginBottom: 'var(--spacing-3)',
                   textAlign: 'center'
                 }}>
                   <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--success-dark)', marginBottom: '4px' }}>
@@ -2199,67 +2082,61 @@ function App() {
                   </div>
                 </div>
               )}
+            </div>
 
-              {/* Action Buttons */}
-              <div style={{ 
-                display: 'flex', 
-                gap: 'var(--spacing-3)', 
-                justifyContent: 'space-between',
-                marginTop: 'var(--spacing-4)'
-              }}>
-                <button
-                  onClick={closeOtherProductCalculator}
-                  style={{
-                    flex: 1,
-                    padding: '12px 24px',
-                    border: '2px solid var(--border-color)',
-                    borderRadius: 'var(--border-radius)',
-                    backgroundColor: 'transparent',
-                    color: 'var(--text-color)',
-                    fontSize: 'var(--font-size-base)',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = 'var(--border-color)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = 'transparent';
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={addCustomAmountToCart}
-                  disabled={!otherProductName.trim() || !otherProductAmount || isNaN(parseFloat(otherProductAmount)) || parseFloat(otherProductAmount) <= 0}
-                  style={{
-                    flex: 2,
-                    padding: '12px 24px',
-                    border: 'none',
-                    borderRadius: 'var(--border-radius)',
-                    backgroundColor: (!otherProductName.trim() || !otherProductAmount || isNaN(parseFloat(otherProductAmount)) || parseFloat(otherProductAmount) <= 0) ? 'var(--border-color)' : 'var(--success-color)',
-                    color: 'white',
-                    fontSize: 'var(--font-size-base)',
-                    fontWeight: '600',
-                    cursor: (!otherProductName.trim() || !otherProductAmount || isNaN(parseFloat(otherProductAmount)) || parseFloat(otherProductAmount) <= 0) ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.2s ease',
-                    opacity: (!otherProductName.trim() || !otherProductAmount || isNaN(parseFloat(otherProductAmount)) || parseFloat(otherProductAmount) <= 0) ? 0.6 : 1
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!e.target.disabled) {
-                      e.target.style.backgroundColor = 'var(--success-dark)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!e.target.disabled) {
-                      e.target.style.backgroundColor = 'var(--success-color)';
-                    }
-                  }}
-                >
-                  🛒 Add to Cart
-                </button>
-              </div>
+            <div className="popup-footer">
+              <button
+                onClick={closeOtherProductCalculator}
+                style={{
+                  flex: 1,
+                  padding: '12px 24px',
+                  border: '2px solid var(--border-color)',
+                  borderRadius: 'var(--border-radius)',
+                  backgroundColor: 'transparent',
+                  color: 'var(--text-color)',
+                  fontSize: 'var(--font-size-base)',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = 'var(--border-color)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = 'transparent';
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={addCustomAmountToCart}
+                disabled={!otherProductName.trim() || !otherProductAmount || isNaN(parseFloat(otherProductAmount)) || parseFloat(otherProductAmount) <= 0}
+                style={{
+                  flex: 2,
+                  padding: '12px 24px',
+                  border: 'none',
+                  borderRadius: 'var(--border-radius)',
+                  backgroundColor: (!otherProductName.trim() || !otherProductAmount || isNaN(parseFloat(otherProductAmount)) || parseFloat(otherProductAmount) <= 0) ? 'var(--border-color)' : 'var(--success-color)',
+                  color: 'white',
+                  fontSize: 'var(--font-size-base)',
+                  fontWeight: '600',
+                  cursor: (!otherProductName.trim() || !otherProductAmount || isNaN(parseFloat(otherProductAmount)) || parseFloat(otherProductAmount) <= 0) ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s ease',
+                  opacity: (!otherProductName.trim() || !otherProductAmount || isNaN(parseFloat(otherProductAmount)) || parseFloat(otherProductAmount) <= 0) ? 0.6 : 1
+                }}
+                onMouseEnter={(e) => {
+                  if (!e.target.disabled) {
+                    e.target.style.backgroundColor = 'var(--success-dark)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!e.target.disabled) {
+                    e.target.style.backgroundColor = 'var(--success-color)';
+                  }
+                }}
+              >
+                🛒 Add to Cart
+              </button>
             </div>
           </div>
         </div>
