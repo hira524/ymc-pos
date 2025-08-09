@@ -405,6 +405,11 @@ function App() {
     description: ''
   });
 
+  // Other Product Calculator States
+  const [showOtherProductCalculator, setShowOtherProductCalculator] = useState(false);
+  const [otherProductAmount, setOtherProductAmount] = useState('');
+  const [otherProductName, setOtherProductName] = useState('');
+
   // Dynamic backend URL for different environments
   const getBackendUrl = () => {
     // Production environment (Netlify + Render)
@@ -812,6 +817,52 @@ function App() {
     });
   };
 
+  // Other Product Calculator Functions
+  const openOtherProductCalculator = () => {
+    setShowOtherProductCalculator(true);
+    setOtherProductAmount('');
+    setOtherProductName('');
+  };
+
+  const closeOtherProductCalculator = () => {
+    setShowOtherProductCalculator(false);
+    setOtherProductAmount('');
+    setOtherProductName('');
+  };
+
+  const addCustomAmountToCart = () => {
+    const amount = parseFloat(otherProductAmount);
+    const name = otherProductName.trim();
+    
+    if (!name) {
+      showAlert('**Product Name Required**\n\nPlease enter a name for this custom product.', 'warning');
+      return;
+    }
+    
+    if (isNaN(amount) || amount <= 0) {
+      showAlert('**Invalid Amount**\n\nPlease enter a valid amount greater than $0.', 'warning');
+      return;
+    }
+
+    // Create a custom product object
+    const customProduct = {
+      id: `custom_${Date.now()}`, // Unique ID for custom products
+      name: name,
+      price: amount,
+      quantity: 1,
+      isCustom: true // Flag to identify custom products
+    };
+
+    // Add to cart using the existing function
+    addToCartWithDiscount(customProduct);
+    closeOtherProductCalculator();
+    showAlert(`**Custom Product Added**\n\n${name} - $${amount.toFixed(2)} added to cart.`, 'success');
+  };
+
+  const addQuickAmount = (amount) => {
+    setOtherProductAmount(amount.toString());
+  };
+
   const updateProductQuantity = async (itemId, newQuantity) => {
     try {
       const response = await axios.put(`${BACKEND_URL}/inventory/${itemId}/quantity`, {
@@ -1162,6 +1213,30 @@ function App() {
                   </div>
                 </div>
               ))}
+              
+              {/* Other Product Option */}
+              <div 
+                className="product hover-lift transition-all other-product"
+                onClick={openOtherProductCalculator}
+                style={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  border: '2px dashed rgba(255, 255, 255, 0.3)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  textAlign: 'center',
+                  minHeight: '120px'
+                }}
+              >
+                <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🧮</div>
+                <h3 className="product-name">Other Product</h3>
+                <div className="product-price">Custom Amount</div>
+                <div style={{ fontSize: 'var(--font-size-sm)', opacity: 0.9, marginTop: '4px' }}>
+                  Click to enter custom amount
+                </div>
+              </div>
             </div>
           </section>
         </div>
@@ -1749,6 +1824,250 @@ function App() {
               >
                 ✕ Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Other Product Calculator Popup */}
+      {showOtherProductCalculator && (
+        <div className="discount-popup-overlay animate-fade-in" style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000
+        }}>
+          <div className="other-product-calculator animate-slide-up" style={{
+            backgroundColor: 'white',
+            borderRadius: 'var(--border-radius-lg)',
+            width: '90%',
+            maxWidth: '500px',
+            maxHeight: '80vh',
+            overflow: 'hidden',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+          }}>
+            <div className="popup-header" style={{ 
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              padding: 'var(--spacing-4)',
+              borderRadius: '12px 12px 0 0'
+            }}>
+              <h3 style={{ margin: 0, fontSize: 'var(--font-size-xl)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                🧮 Other Product Calculator
+              </h3>
+              <p style={{ margin: '8px 0 0 0', opacity: 0.9, fontSize: 'var(--font-size-sm)' }}>
+                Enter custom product name and amount
+              </p>
+            </div>
+
+            <div style={{ padding: 'var(--spacing-6)' }}>
+              {/* Product Name Input */}
+              <div style={{ marginBottom: 'var(--spacing-4)' }}>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: 'var(--spacing-2)', 
+                  fontWeight: '600',
+                  color: 'var(--text-color)'
+                }}>
+                  Product Name
+                </label>
+                <input
+                  type="text"
+                  value={otherProductName}
+                  onChange={(e) => setOtherProductName(e.target.value)}
+                  placeholder="e.g., Service Fee, Consultation, etc."
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    border: '2px solid var(--border-color)',
+                    borderRadius: 'var(--border-radius)',
+                    fontSize: 'var(--font-size-base)',
+                    outline: 'none',
+                    transition: 'border-color 0.2s ease',
+                    boxSizing: 'border-box'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = 'var(--primary-color)'}
+                  onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
+                />
+              </div>
+
+              {/* Quick Amount Buttons */}
+              <div style={{ marginBottom: 'var(--spacing-4)' }}>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: 'var(--spacing-2)', 
+                  fontWeight: '600',
+                  color: 'var(--text-color)'
+                }}>
+                  Quick Amounts
+                </label>
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(4, 1fr)', 
+                  gap: 'var(--spacing-2)' 
+                }}>
+                  {[1, 5, 10, 20, 50, 100, 200, 500].map(amount => (
+                    <button
+                      key={amount}
+                      onClick={() => addQuickAmount(amount)}
+                      style={{
+                        padding: '8px',
+                        border: '2px solid var(--primary-color)',
+                        borderRadius: 'var(--border-radius)',
+                        backgroundColor: otherProductAmount === amount.toString() ? 'var(--primary-color)' : 'transparent',
+                        color: otherProductAmount === amount.toString() ? 'white' : 'var(--primary-color)',
+                        fontSize: 'var(--font-size-sm)',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (otherProductAmount !== amount.toString()) {
+                          e.target.style.backgroundColor = 'var(--primary-color)';
+                          e.target.style.color = 'white';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (otherProductAmount !== amount.toString()) {
+                          e.target.style.backgroundColor = 'transparent';
+                          e.target.style.color = 'var(--primary-color)';
+                        }
+                      }}
+                    >
+                      ${amount}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Custom Amount Input */}
+              <div style={{ marginBottom: 'var(--spacing-4)' }}>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: 'var(--spacing-2)', 
+                  fontWeight: '600',
+                  color: 'var(--text-color)'
+                }}>
+                  Custom Amount
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <span style={{
+                    position: 'absolute',
+                    left: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    fontSize: 'var(--font-size-lg)',
+                    fontWeight: '600',
+                    color: 'var(--text-color)'
+                  }}>$</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={otherProductAmount}
+                    onChange={(e) => setOtherProductAmount(e.target.value)}
+                    placeholder="0.00"
+                    style={{
+                      width: '100%',
+                      padding: '12px 12px 12px 32px',
+                      border: '2px solid var(--border-color)',
+                      borderRadius: 'var(--border-radius)',
+                      fontSize: 'var(--font-size-lg)',
+                      fontWeight: '600',
+                      outline: 'none',
+                      transition: 'border-color 0.2s ease',
+                      boxSizing: 'border-box'
+                    }}
+                    onFocus={(e) => e.target.style.borderColor = 'var(--primary-color)'}
+                    onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
+                  />
+                </div>
+              </div>
+
+              {/* Amount Display */}
+              {otherProductAmount && !isNaN(parseFloat(otherProductAmount)) && (
+                <div style={{ 
+                  backgroundColor: 'var(--success-light)', 
+                  padding: 'var(--spacing-3)', 
+                  borderRadius: 'var(--border-radius)',
+                  marginBottom: 'var(--spacing-4)',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--success-dark)', marginBottom: '4px' }}>
+                    Total Amount
+                  </div>
+                  <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: '700', color: 'var(--success-color)' }}>
+                    ${parseFloat(otherProductAmount).toFixed(2)}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div style={{ 
+                display: 'flex', 
+                gap: 'var(--spacing-3)', 
+                justifyContent: 'space-between',
+                marginTop: 'var(--spacing-4)'
+              }}>
+                <button
+                  onClick={closeOtherProductCalculator}
+                  style={{
+                    flex: 1,
+                    padding: '12px 24px',
+                    border: '2px solid var(--border-color)',
+                    borderRadius: 'var(--border-radius)',
+                    backgroundColor: 'transparent',
+                    color: 'var(--text-color)',
+                    fontSize: 'var(--font-size-base)',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = 'var(--border-color)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={addCustomAmountToCart}
+                  disabled={!otherProductName.trim() || !otherProductAmount || isNaN(parseFloat(otherProductAmount)) || parseFloat(otherProductAmount) <= 0}
+                  style={{
+                    flex: 2,
+                    padding: '12px 24px',
+                    border: 'none',
+                    borderRadius: 'var(--border-radius)',
+                    backgroundColor: (!otherProductName.trim() || !otherProductAmount || isNaN(parseFloat(otherProductAmount)) || parseFloat(otherProductAmount) <= 0) ? 'var(--border-color)' : 'var(--success-color)',
+                    color: 'white',
+                    fontSize: 'var(--font-size-base)',
+                    fontWeight: '600',
+                    cursor: (!otherProductName.trim() || !otherProductAmount || isNaN(parseFloat(otherProductAmount)) || parseFloat(otherProductAmount) <= 0) ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s ease',
+                    opacity: (!otherProductName.trim() || !otherProductAmount || isNaN(parseFloat(otherProductAmount)) || parseFloat(otherProductAmount) <= 0) ? 0.6 : 1
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!e.target.disabled) {
+                      e.target.style.backgroundColor = 'var(--success-dark)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!e.target.disabled) {
+                      e.target.style.backgroundColor = 'var(--success-color)';
+                    }
+                  }}
+                >
+                  🛒 Add to Cart
+                </button>
+              </div>
             </div>
           </div>
         </div>

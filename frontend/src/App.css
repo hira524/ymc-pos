@@ -272,6 +272,33 @@ input[type="search"]::placeholder {
   animation: pulse 2s infinite;
 }
 
+/* Other Product Specific Styles */
+.other-product {
+  position: relative;
+  overflow: hidden;
+}
+
+.other-product::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, transparent 48%, rgba(255, 255, 255, 0.1) 50%, transparent 52%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.other-product:hover::before {
+  opacity: 1;
+}
+
+.other-product:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 20px 25px -5px rgba(102, 126, 234, 0.4), 0 10px 10px -5px rgba(118, 75, 162, 0.2);
+}
+
 /* Cart Styles */
 .cart {
   width: 420px;
