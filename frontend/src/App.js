@@ -54,6 +54,81 @@ const CustomAlert = ({ alert, onClose }) => {
   );
 };
 
+// Payment Processing Popup Component
+const PaymentProcessingPopup = ({ isVisible, step, progress, onCancel }) => {
+  if (!isVisible) return null;
+
+  const getStepIcon = (step) => {
+    switch (step) {
+      case 'initializing': return '🔄';
+      case 'waiting_for_card': return '💳';
+      case 'processing': return '⚡';
+      case 'completing': return '✅';
+      default: return '💳';
+    }
+  };
+
+  const getStepMessage = (step) => {
+    switch (step) {
+      case 'initializing': return 'Initializing payment...';
+      case 'waiting_for_card': return 'Please present your card to the terminal';
+      case 'processing': return 'Processing payment...';
+      case 'completing': return 'Finalizing transaction...';
+      default: return 'Processing payment...';
+    }
+  };
+
+  return (
+    <div className="payment-popup-overlay">
+      <div className="payment-popup">
+        <div className="payment-popup-header">
+          <h3>💳 Card Payment</h3>
+        </div>
+        
+        <div className="payment-popup-body">
+          <div className="payment-icon-container">
+            <div className="payment-icon">{getStepIcon(step)}</div>
+          </div>
+          
+          <div className="payment-message">
+            <h4>{getStepMessage(step)}</h4>
+            {step === 'waiting_for_card' && (
+              <p className="payment-instruction">
+                Insert, tap, or swipe your card on the payment terminal
+              </p>
+            )}
+            {step === 'processing' && (
+              <p className="payment-instruction">
+                Please wait while we process your payment
+              </p>
+            )}
+          </div>
+          
+          <div className="payment-progress-container">
+            <div className="payment-progress-bar">
+              <div 
+                className="payment-progress-fill" 
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
+            <div className="payment-progress-text">{progress}%</div>
+          </div>
+        </div>
+        
+        <div className="payment-popup-footer">
+          <button 
+            className="payment-cancel-btn"
+            onClick={onCancel}
+            disabled={step === 'processing' || step === 'completing'}
+          >
+            {step === 'processing' || step === 'completing' ? 'Please Wait...' : 'Cancel'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 function App() {
   const [inventory, setInventory] = useState([]);
   const [search, setSearch] = useState('');
@@ -63,6 +138,9 @@ function App() {
   const [reader, setReader] = useState(null);
   const [currentAlert, setCurrentAlert] = useState(null);
   const [testMode, setTestMode] = useState(false);
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [paymentStep, setPaymentStep] = useState('');
+  const [paymentProgress, setPaymentProgress] = useState(0);
 
   // Dynamic backend URL for different environments
   const getBackendUrl = () => {
@@ -357,30 +435,76 @@ function App() {
     if (method === 'cash') return complete('cash');
 
     if (!terminal || !reader) return showAlert('**Payment Terminal Required**\n\nNo card payment terminal is currently connected.\n\n**For card payments:**\n• Ensure your payment device is powered on\n• Check device connectivity\n• Try reconnecting the terminal\n\n*Use cash payment as an alternative.*', 'error');
+    
     const amount = Math.round(total * 100);
+    
+    // Show payment processing popup
+    setPaymentProcessing(true);
+    setPaymentStep('initializing');
+    setPaymentProgress(10);
     
     try {
       // Create payment intent
+      setPaymentStep('initializing');
+      setPaymentProgress(20);
+      
       const response = await axios.post(`${BACKEND_URL}/create_payment_intent`, { amount });
       const { client_secret } = response.data;
       
       if (!client_secret) {
+        setPaymentProcessing(false);
         return showAlert('**Payment Setup Failed**\n\nUnable to initialize secure payment processing.\n\n*This is usually a temporary server issue. Please try again in a moment.*\n\nIf the problem persists, contact technical support.', 'error');
       }
 
+      // Wait for card presentation
+      setPaymentStep('waiting_for_card');
+      setPaymentProgress(40);
+
       // Collect payment method
       const { error: collectErr, paymentIntent } = await terminal.collectPaymentMethod(client_secret);
-      if (collectErr) return showAlert(`**Payment Collection Error**\n\nUnable to collect payment information from the card terminal.\n\n**Error:** ${collectErr.message}\n\n*Please try inserting/swiping the card again or use a different payment method.*`, 'error');
+      if (collectErr) {
+        setPaymentProcessing(false);
+        return showAlert(`**Payment Collection Error**\n\nUnable to collect payment information from the card terminal.\n\n**Error:** ${collectErr.message}\n\n*Please try inserting/swiping the card again or use a different payment method.*`, 'error');
+      }
 
       // Process payment
+      setPaymentStep('processing');
+      setPaymentProgress(70);
+      
       const { error: processErr } = await terminal.processPayment(paymentIntent);
-      if (processErr) return showAlert(`**Payment Processing Failed**\n\nThe payment could not be completed successfully.\n\n**Error:** ${processErr.message}\n\n**Next Steps:**\n• Try the transaction again\n• Use a different card\n• Contact your bank if the issue persists\n• Consider cash payment as alternative`, 'error');
+      if (processErr) {
+        setPaymentProcessing(false);
+        return showAlert(`**Payment Processing Failed**\n\nThe payment could not be completed successfully.\n\n**Error:** ${processErr.message}\n\n**Next Steps:**\n• Try the transaction again\n• Use a different card\n• Contact your bank if the issue persists\n• Consider cash payment as alternative`, 'error');
+      }
 
-      complete('card');
+      // Complete transaction
+      setPaymentStep('completing');
+      setPaymentProgress(90);
+      
+      // Small delay to show completion
+      setTimeout(() => {
+        setPaymentProgress(100);
+        setTimeout(() => {
+          setPaymentProcessing(false);
+          complete('card');
+        }, 500);
+      }, 1000);
+
     } catch (error) {
+      setPaymentProcessing(false);
       console.error('Payment error:', error);
       const errorMessage = error.response?.data?.error || error.message || 'Unknown payment error';
       showAlert(`**Payment Transaction Failed**\n\nWe encountered an issue while processing your payment.\n\n**Technical Details:**\n${errorMessage}\n\n**What you can do:**\n• Verify card details and try again\n• Check your internet connection\n• Use a different payment method\n• Contact customer support for assistance\n\n*Your order has not been charged.*`, 'error');
+    }
+  };
+
+  const cancelPayment = () => {
+    setPaymentProcessing(false);
+    setPaymentStep('');
+    setPaymentProgress(0);
+    // Optionally cancel any ongoing terminal operations
+    if (terminal) {
+      terminal.cancelCollectPaymentMethod().catch(console.error);
     }
   };
 
@@ -388,6 +512,14 @@ function App() {
     <div className="app">
       {/* Custom Alert Components */}
       <CustomAlert alert={currentAlert} onClose={closeAlert} />
+      
+      {/* Payment Processing Popup */}
+      <PaymentProcessingPopup 
+        isVisible={paymentProcessing}
+        step={paymentStep}
+        progress={paymentProgress}
+        onCancel={cancelPayment}
+      />
       
       {/* Theme Toggle */}
       <ThemeToggle />
