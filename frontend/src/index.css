@@ -1,72 +1,64 @@
-/* Global Variables - New Color Palette */
+/* Global Variables - Enhanced for Better Visibility */
 :root {
-  /* Primary palette from image */
-  --primary-color: #2c586e;          /* Main dark teal */
-  --primary-light: #8da1af;          /* Soft blue-gray */
-  --primary-dark: #2b576d;           /* Deep teal */
-  --secondary-color: #dd9f52;        /* Warm orange */
-  --secondary-light: #dcc894;        /* Soft gold */
-  --accent-color: #dd9f52;           /* Warm orange accent */
-  --danger-color: #dc3545;           /* Keep red for errors */
-  --warning-color: #dd9f52;          /* Use warm orange for warnings */
-  --success-color: #28a745;          /* Keep green for success */
+  /* Primary palette */
+  --primary-color: #2c586e;
+  --primary-light: #8da1af;
+  --primary-dark: #2b576d;
+  --secondary-color: #dd9f52;
+  --secondary-light: #dcc894;
+  --accent-color: #dd9f52;
+  --danger-color: #dc3545;
+  --warning-color: #dd9f52;
+  --success-color: #28a745;
   
-  /* Theme-aware colors (Light theme defaults) */
+  /* Light theme colors - Enhanced contrast */
   --background-primary: #ffffff;
-  --background-secondary: #bed0db;    /* Light blue-gray */
-  --background-tertiary: #8da1af;    /* Soft blue-gray */
+  --background-secondary: #f8f9fa;
+  --background-tertiary: #e9ecef;
+  --surface-color: #ffffff;
+  --background-light: #f8f9fa;
   
-  --text-primary: #2b576d;           /* Deep teal for main text */
-  --text-secondary: #2c586e;         /* Dark teal for secondary */
-  --text-muted: #8da1af;             /* Soft blue-gray for muted */
+  --text-color: #212529;
+  --text-primary: #212529;
+  --text-secondary: #495057;
+  --text-muted: #6c757d;
   
-  --border-color: #bed0db;           /* Light blue-gray */
-  --border-light: #bed0db;           /* Light blue-gray */
-  --border-dark: #8da1af;            /* Soft blue-gray */
+  --border-color: #dee2e6;
+  --border-light: #e9ecef;
+  --border-dark: #adb5bd;
   
-  /* Updated gray scale using new palette colors */
-  --gray-50: #ffffff;
-  --gray-100: #bed0db;              /* Light blue-gray */
-  --gray-200: #8da1af;              /* Soft blue-gray */
-  --gray-300: #7a94a3;              /* Medium blue-gray */
-  --gray-400: #6b8a98;              /* Muted blue-gray */
-  --gray-500: #2c586e;              /* Dark teal */
-  --gray-600: #2b576d;              /* Deep teal */
-  --gray-700: #244a5c;              /* Darker teal */
-  --gray-800: #1a3d4a;              /* Very dark teal */
-  --gray-900: #0f2a35;              /* Almost black teal */
+  /* Ultra-compact font sizes for maximum content density */
+  --font-size-xs: 0.6rem;         /* Further reduced */
+  --font-size-sm: 0.7rem;         /* Further reduced */
+  --font-size-base: 0.8rem;       /* Further reduced */
+  --font-size-lg: 0.9rem;         /* Further reduced */
+  --font-size-xl: 1rem;           /* Further reduced */
+  --font-size-2xl: 1.1rem;        /* Further reduced */
+  --font-size-3xl: 1.3rem;        /* Further reduced */
   
-  /* Updated shadows using new palette colors */
-  --shadow-sm: 0 1px 2px 0 rgba(44, 88, 110, 0.05);
-  --shadow: 0 1px 3px 0 rgba(44, 88, 110, 0.1), 0 1px 2px -1px rgba(44, 88, 110, 0.1);
-  --shadow-md: 0 4px 6px -1px rgba(44, 88, 110, 0.1), 0 2px 4px -2px rgba(44, 88, 110, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(44, 88, 110, 0.1), 0 4px 6px -4px rgba(44, 88, 110, 0.1);
-  --shadow-xl: 0 20px 25px -5px rgba(44, 88, 110, 0.1), 0 8px 10px -6px rgba(44, 88, 110, 0.1);
+  /* Ultra-compact spacing for maximum content density */
+  --spacing-1: 0.15rem;           /* Further reduced */
+  --spacing-2: 0.3rem;            /* Further reduced */
+  --spacing-3: 0.5rem;            /* Further reduced */
+  --spacing-4: 0.7rem;            /* Further reduced */
+  --spacing-5: 0.9rem;            /* Further reduced */
+  --spacing-6: 1rem;              /* Further reduced */
+  --spacing-8: 1.3rem;            /* Further reduced */
+  --spacing-10: 1.6rem;           /* Further reduced */
+  --spacing-12: 2rem;             /* Further reduced */
+  --spacing-16: 2.5rem;           /* Further reduced */
+  --spacing-20: 3rem;             /* Further reduced */
   
-  --border-radius: 8px;
-  --border-radius-sm: 4px;
-  --border-radius-lg: 12px;
-  --border-radius-xl: 16px;
+  --border-radius: 6px;
+  --border-radius-sm: 3px;
+  --border-radius-lg: 10px;
+  --border-radius-xl: 14px;
   
-  --font-size-xs: 0.75rem;
-  --font-size-sm: 0.875rem;
-  --font-size-base: 1rem;
-  --font-size-lg: 1.125rem;
-  --font-size-xl: 1.25rem;
-  --font-size-2xl: 1.5rem;
-  --font-size-3xl: 1.875rem;
-  
-  --spacing-1: 0.25rem;
-  --spacing-2: 0.5rem;
-  --spacing-3: 0.75rem;
-  --spacing-4: 1rem;
-  --spacing-5: 1.25rem;
-  --spacing-6: 1.5rem;
-  --spacing-8: 2rem;
-  --spacing-10: 2.5rem;
-  --spacing-12: 3rem;
-  --spacing-16: 4rem;
-  --spacing-20: 5rem;
+  /* Enhanced shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
 }
 
 /* Reset and Base Styles */
