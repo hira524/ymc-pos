@@ -756,6 +756,30 @@ app.get('/status', (_, res) => {
   res.json(status);
 });
 
+// Stripe configuration endpoint
+app.get('/stripe/config', (req, res) => {
+  try {
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY;
+    const isTestMode = stripeKey && stripeKey.startsWith('sk_test_');
+    const isLiveMode = stripeKey && stripeKey.startsWith('sk_live_');
+    
+    res.json({
+      testMode: isTestMode,
+      liveMode: isLiveMode,
+      configured: !!(stripeKey),
+      publishableKey: publishableKey, // Frontend might need this
+      environment: process.env.NODE_ENV || 'development'
+    });
+  } catch (error) {
+    console.error('Error getting Stripe config:', error);
+    res.status(500).json({ 
+      error: 'Failed to get Stripe configuration',
+      testMode: true // Default to test mode on error
+    });
+  }
+});
+
 // Debug endpoint for GoHighLevel API testing
 app.get('/debug/ghl', async (req, res) => {
   try {
