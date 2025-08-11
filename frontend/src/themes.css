@@ -50,51 +50,50 @@
   --hover-shadow: 0 8px 15px rgba(44, 88, 110, 0.2);
 }
 
-/* Dark Theme */
+/* Dark Theme with Enhanced Visibility */
 [data-theme="dark"] {
-  /* Primary palette adjusted for dark theme */
-  --primary-color: #8da1af;          /* Soft blue-gray as primary */
+  /* Primary palette with high contrast for dark theme */
+  --primary-color: #93b3c7;          /* Brighter blue-gray for better visibility */
   --primary-light: #bed0db;          /* Light blue-gray */
   --primary-dark: #2c586e;           /* Dark teal */
-  --secondary-color: #dcc894;        /* Soft gold */
+  --secondary-color: #e6d4a3;        /* Brighter gold for better contrast */
   --secondary-light: #dd9f52;        /* Warm orange */
-  --accent-color: #dcc894;           /* Soft gold accent */
-  --danger-color: #ef4444;           /* Brighter red for dark theme */
-  --warning-color: #f59e0b;          /* Brighter orange for dark theme */
-  --success-color: #10b981;          /* Brighter green for dark theme */
+  --accent-color: #e6d4a3;           /* Bright gold accent */
+  --danger-color: #f87171;           /* Brighter red for visibility */
+  --warning-color: #fbbf24;          /* Brighter orange for visibility */
+  --success-color: #34d399;          /* Brighter green for visibility */
   
-  /* Dark backgrounds with proper contrast */
-  --background-primary: #1f2937;     /* Dark gray for main backgrounds */
-  --background-secondary: #374151;   /* Medium gray for sections */
-  --background-tertiary: #4b5563;    /* Lighter gray for tertiary elements */
+  /* Enhanced dark backgrounds with stronger contrast */
+  --background-primary: #111827;     /* Darker background for maximum contrast */
+  --background-secondary: #1f2937;   /* Medium dark for sections */
+  --background-tertiary: #374151;    /* Lighter dark for tertiary elements */
   
-  /* Dark theme text with high contrast */
-  --text-primary: #f9fafb;           /* Almost white for maximum contrast */
-  --text-secondary: #e5e7eb;         /* Light gray for secondary text */
-  --text-muted: #9ca3af;             /* Medium gray for muted text */
+  /* Enhanced dark theme text with maximum contrast */
+  --text-primary: #ffffff;           /* Pure white for maximum readability */
+  --text-secondary: #f3f4f6;         /* Near white for secondary text */
+  --text-muted: #d1d5db;             /* Light gray for muted text with better contrast */
   
-  /* Dark theme borders with visible contrast */
-  --border-color: #4b5563;           /* Medium gray border */
-  --border-light: #374151;           /* Darker border for subtle separation */
-  --border-dark: #6b7280;            /* Lighter border for emphasis */
-  
-  /* Dark theme gray scale */
-  --gray-50: #f9fafb;
-  --gray-100: #f3f4f6;
-  --gray-200: #e5e7eb;
-  --gray-300: #d1d5db;
-  --gray-400: #9ca3af;
-  --gray-500: #6b7280;
-  --gray-600: #4b5563;
+  /* Enhanced dark theme borders with better visibility */
+  --border-color: #6b7280;           /* Lighter gray border for visibility */
+  --border-light: #4b5563;           /* Medium border for subtle separation */
+  --border-dark: #9ca3af;            /* Light border for strong emphasis */
+  /* Enhanced dark theme gray scale with better contrast */
+  --gray-50: #ffffff;
+  --gray-100: #f9fafb;
+  --gray-200: #f3f4f6;
+  --gray-300: #e5e7eb;
+  --gray-400: #d1d5db;
+  --gray-500: #9ca3af;
+  --gray-600: #6b7280;
   --gray-700: #374151;
   --gray-800: #1f2937;
   --gray-900: #111827;
   
-  /* Dark theme cards and effects */
-  --card-background: #1f2937;        /* Dark gray for cards */
-  --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-  --hover-background: #374151;       /* Medium gray for hover */
-  --hover-shadow: 0 8px 15px rgba(0, 0, 0, 0.4);
+  /* Enhanced dark theme cards and effects */
+  --card-background: #111827;        /* Darker background for cards */
+  --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+  --hover-background: #1f2937;       /* Lighter dark for hover */
+  --hover-shadow: 0 8px 15px rgba(0, 0, 0, 0.6);
 }
 
 /* Theme Transition */
@@ -102,7 +101,7 @@
   transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
-/* Enhanced Dark Theme Specific Overrides */
+/* Enhanced Dark Theme Specific Overrides for Maximum Visibility */
 [data-theme="dark"] body {
   background-color: var(--gray-900) !important;
   color: var(--text-primary) !important;
@@ -115,19 +114,22 @@
 [data-theme="dark"] .search-section,
 [data-theme="dark"] .products-section {
   background: var(--background-primary) !important;
-  border-color: var(--border-color) !important;
+  border: 2px solid var(--border-color) !important;
   color: var(--text-primary) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
 }
 
 [data-theme="dark"] .product {
   background: var(--background-primary) !important;
-  border-color: var(--border-color) !important;
+  border: 2px solid var(--border-color) !important;
   color: var(--text-primary) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
 }
 
 [data-theme="dark"] .product:hover {
   background: var(--hover-background) !important;
   border-color: var(--primary-color) !important;
+  box-shadow: 0 6px 16px rgba(147, 179, 199, 0.3) !important;
 }
 
 [data-theme="dark"] .product-name {
@@ -151,12 +153,20 @@
 [data-theme="dark"] input {
   background: var(--background-secondary) !important;
   color: var(--text-primary) !important;
-  border-color: var(--border-color) !important;
+  border: 2px solid var(--border-color) !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] .search-input:focus,
+[data-theme="dark"] input:focus {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 3px rgba(147, 179, 199, 0.3) !important;
 }
 
 [data-theme="dark"] .search-input::placeholder,
 [data-theme="dark"] input::placeholder {
   color: var(--text-muted) !important;
+  opacity: 0.9 !important;
 }
 
 /* Comprehensive Dark Mode Text Overrides - Updated */
@@ -188,15 +198,29 @@
   color: var(--text-primary) !important;
 }
 
-/* Dark Mode Input Styling */
+/* Enhanced Dark Mode Input Styling with Better Visibility */
 [data-theme="dark"] .search-input,
 [data-theme="dark"] input[type="search"],
 [data-theme="dark"] input[type="text"],
 [data-theme="dark"] input[type="number"],
 [data-theme="dark"] .quantity-input {
-  background: var(--background-secondary) !important;
-  color: var(--text-primary) !important;
-  border-color: var(--border-color) !important;
+  background: #111827 !important;
+  color: #ffffff !important;
+  border: 2px solid #6b7280 !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .search-input:focus,
+[data-theme="dark"] input:focus {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 3px rgba(147, 179, 199, 0.3) !important;
+  background: var(--background-primary) !important;
+}
+
+[data-theme="dark"] .search-input::placeholder,
+[data-theme="dark"] input::placeholder {
+  color: var(--text-muted) !important;
+  opacity: 0.9 !important;
 }
 
 [data-theme="dark"] .search-input:focus,
@@ -455,31 +479,109 @@
   color: white;
 }
 
-/* Cart Dark Mode Overrides */
+/* Enhanced Cart Dark Mode Overrides for Maximum Visibility */
 [data-theme="dark"] .cart {
   background: var(--background-primary) !important;
-  border-color: var(--border-color) !important;
+  border: 2px solid var(--border-color) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5) !important;
 }
 
 [data-theme="dark"] .cart-header {
-  background: var(--background-primary) !important;
+  background: var(--background-secondary) !important;
   color: var(--text-primary) !important;
-  border-color: var(--border-color) !important;
+  border-bottom: 2px solid var(--border-color) !important;
+}
+
+[data-theme="dark"] .cart-header::before {
+  background: linear-gradient(90deg, var(--primary-color), var(--secondary-color)) !important;
+}
+
+[data-theme="dark"] .cart-title {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .cart-count {
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-light)) !important;
+  color: var(--gray-900) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] .cart-items {
+  background: var(--background-primary) !important;
+}
+
+[data-theme="dark"] .cart-items::-webkit-scrollbar {
+  background: var(--background-secondary) !important;
+}
+
+[data-theme="dark"] .cart-items::-webkit-scrollbar-track {
+  background: var(--background-tertiary) !important;
+}
+
+[data-theme="dark"] .cart-items::-webkit-scrollbar-thumb {
+  background: var(--border-dark) !important;
+}
+
+[data-theme="dark"] .cart-items::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted) !important;
 }
 
 [data-theme="dark"] .cart-total-section {
-  background: var(--background-secondary) !important;
-  border-color: var(--border-color) !important;
+  background: var(--background-tertiary) !important;
+  border-top: 2px solid var(--border-color) !important;
+  border-bottom: 2px solid var(--border-color) !important;
 }
 
 [data-theme="dark"] .cart-total {
   background: var(--background-primary) !important;
-  border-color: var(--border-color) !important;
+  border: 2px solid var(--border-dark) !important;
   color: var(--text-primary) !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .cart-item {
+  border-bottom: 1px solid var(--border-color) !important;
+  background: var(--background-primary) !important;
 }
 
 [data-theme="dark"] .cart-item:hover {
   background: var(--background-secondary) !important;
+  border-color: var(--border-dark) !important;
+}
+
+[data-theme="dark"] .cart-item-info {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .cart-item-controls {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .quantity-input {
+  background-color: #111827 !important;
+  color: #ffffff !important;
+  border: 2px solid #6b7280 !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .quantity-input:focus {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  border: 2px solid #93b3c7 !important;
+  box-shadow: 0 0 0 3px rgba(147, 179, 199, 0.3) !important;
+  outline: none !important;
+}
+
+/* Discount Summary Dark Mode Override */
+[data-theme="dark"] .discount-summary {
+  background: linear-gradient(135deg, #1f2937 0%, #111827 100%) !important;
+  border: 2px solid #34d399 !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .discount-summary span {
+  color: var(--text-primary) !important;
 }
 
 [data-theme="dark"] .cart-item,
@@ -493,6 +595,18 @@
 [data-theme="dark"] .cart-empty,
 [data-theme="dark"] .cart-empty small {
   color: var(--text-primary) !important;
+}
+
+/* Enhanced cart item text sizing for better readability */
+[data-theme="dark"] .cart-item-name {
+  font-size: var(--font-size-sm) !important;
+  font-weight: 500 !important;
+}
+
+[data-theme="dark"] .cart-item-price {
+  font-size: var(--font-size-sm) !important;
+  font-weight: 600 !important;
+  color: var(--secondary-color) !important;
 }
 
 [data-theme="dark"] .delete-item-btn {
@@ -553,6 +667,18 @@
   border-color: var(--border-dark) !important;
 }
 
+/* Enhanced cart item text sizing for better readability */
+[data-theme="light"] .cart-item-name {
+  font-size: var(--font-size-sm) !important;
+  font-weight: 500 !important;
+}
+
+[data-theme="light"] .cart-item-price {
+  font-size: var(--font-size-sm) !important;
+  font-weight: 600 !important;
+  color: var(--secondary-color) !important;
+}
+
 [data-theme="light"] .delete-item-btn {
   background: var(--danger-color) !important;
   color: white !important;
@@ -566,6 +692,79 @@
 [data-theme="dark"] button,
 [data-theme="dark"] .checkout-button {
   color: var(--text-primary) !important;
+  border: 2px solid var(--border-color) !important;
+  background: var(--background-secondary) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] button:hover,
+[data-theme="dark"] .checkout-button:hover {
+  background: var(--background-tertiary) !important;
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 4px 12px rgba(147, 179, 199, 0.3) !important;
+}
+
+[data-theme="dark"] .checkout-buttons {
+  background: transparent !important;
+}
+
+[data-theme="dark"] .btn-primary {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%) !important;
+  color: var(--gray-900) !important;
+  border-color: var(--primary-color) !important;
+}
+
+[data-theme="dark"] .btn-primary:hover {
+  background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary-color) 100%) !important;
+  box-shadow: 0 8px 16px rgba(147, 179, 199, 0.4) !important;
+}
+
+[data-theme="dark"] .btn-success {
+  background: linear-gradient(135deg, var(--success-color) 0%, var(--secondary-color) 100%) !important;
+  color: var(--gray-900) !important;
+  border-color: var(--success-color) !important;
+}
+
+[data-theme="dark"] .btn-success:hover {
+  background: linear-gradient(135deg, #34d399 0%, #e6d4a3 100%) !important;
+  box-shadow: 0 8px 16px rgba(52, 211, 153, 0.4) !important;
+}
+
+[data-theme="dark"] .btn-secondary {
+  background: var(--background-tertiary) !important;
+  color: var(--text-primary) !important;
+  border: 2px solid var(--border-color) !important;
+}
+
+[data-theme="dark"] .btn-secondary:hover {
+  background: var(--background-secondary) !important;
+  border-color: var(--border-dark) !important;
+}
+
+[data-theme="dark"] .btn-warning {
+  background: linear-gradient(135deg, var(--warning-color) 0%, #f59e0b 100%) !important;
+  color: var(--gray-900) !important;
+  border-color: var(--warning-color) !important;
+}
+
+[data-theme="dark"] .btn-warning:hover {
+  background: linear-gradient(135deg, #fbbf24 0%, var(--warning-color) 100%) !important;
+}
+
+[data-theme="dark"] .btn-danger {
+  background: linear-gradient(135deg, var(--danger-color) 0%, #ef4444 100%) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--danger-color) !important;
+}
+
+[data-theme="dark"] .btn-danger:hover {
+  background: linear-gradient(135deg, #f87171 0%, var(--danger-color) 100%) !important;
+}
+
+[data-theme="dark"] button:disabled {
+  opacity: 0.6 !important;
+  background: var(--background-secondary) !important;
+  color: var(--text-muted) !important;
   border-color: var(--border-color) !important;
 }
 
@@ -623,6 +822,30 @@
   color: white !important;
 }
 
+/* Enhanced Dark Mode Typography and Spacing with Maximum Visibility */
+[data-theme="dark"] .search-title,
+[data-theme="dark"] .products-title,
+[data-theme="dark"] .cart-title {
+  color: var(--text-primary) !important;
+  font-weight: 600 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .product-name {
+  color: var(--text-primary) !important;
+  font-weight: 500 !important;
+}
+
+[data-theme="dark"] .product-price {
+  color: var(--secondary-color) !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="dark"] .product-stock {
+  color: var(--text-secondary) !important;
+  opacity: 1 !important;
+}
+
 /* Enhanced Light Mode Typography and Spacing */
 [data-theme="light"] .search-title,
 [data-theme="light"] .products-title,
@@ -645,6 +868,591 @@
 [data-theme="light"] .product-stock {
   color: var(--text-secondary) !important;
   opacity: 0.9 !important;
+}
+
+/* Enhanced Dark Mode Scrollbar */
+[data-theme="dark"] *::-webkit-scrollbar {
+  width: 8px !important;
+  background: var(--background-secondary) !important;
+}
+
+[data-theme="dark"] *::-webkit-scrollbar-thumb {
+  background: var(--border-dark) !important;
+  border-radius: 4px !important;
+}
+
+[data-theme="dark"] *::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted) !important;
+}
+
+[data-theme="dark"] *::-webkit-scrollbar-track {
+  background: var(--background-primary) !important;
+}
+
+/* Comprehensive Dark Mode Alert and Modal Overrides */
+[data-theme="dark"] .custom-alert {
+  background: var(--background-primary) !important;
+  color: var(--text-primary) !important;
+  border: 2px solid var(--border-color) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6) !important;
+}
+
+[data-theme="dark"] .custom-alert h3,
+[data-theme="dark"] .custom-alert h4,
+[data-theme="dark"] .custom-alert p,
+[data-theme="dark"] .custom-alert div,
+[data-theme="dark"] .custom-alert span {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .custom-alert .alert-content {
+  background: var(--background-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .custom-confirm {
+  background: var(--background-primary) !important;
+  color: var(--text-primary) !important;
+  border: 2px solid var(--border-color) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6) !important;
+}
+
+[data-theme="dark"] .custom-confirm h3,
+[data-theme="dark"] .custom-confirm h4,
+[data-theme="dark"] .custom-confirm p,
+[data-theme="dark"] .custom-confirm div,
+[data-theme="dark"] .custom-confirm span {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .modal-overlay {
+  background: rgba(0, 0, 0, 0.8) !important;
+}
+
+[data-theme="dark"] .modal-content {
+  background: var(--background-primary) !important;
+  color: var(--text-primary) !important;
+  border: 2px solid var(--border-color) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6) !important;
+}
+
+[data-theme="dark"] .payment-popup {
+  background: var(--background-primary) !important;
+  color: var(--text-primary) !important;
+  border: 2px solid var(--border-color) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6) !important;
+}
+
+[data-theme="dark"] .payment-popup h3,
+[data-theme="dark"] .payment-popup h4,
+[data-theme="dark"] .payment-popup p,
+[data-theme="dark"] .payment-popup div,
+[data-theme="dark"] .payment-popup span,
+[data-theme="dark"] .payment-popup label {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .cash-calculator {
+  background: var(--background-primary) !important;
+  color: var(--text-primary) !important;
+  border: 2px solid var(--border-color) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6) !important;
+}
+
+[data-theme="dark"] .cash-calculator h3,
+[data-theme="dark"] .cash-calculator h4,
+[data-theme="dark"] .cash-calculator p,
+[data-theme="dark"] .cash-calculator div,
+[data-theme="dark"] .cash-calculator span,
+[data-theme="dark"] .cash-calculator label {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .calculator-display {
+  background: var(--background-secondary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+[data-theme="dark"] .calculator-buttons button {
+  background: var(--background-secondary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+[data-theme="dark"] .calculator-buttons button:hover {
+  background: var(--background-tertiary) !important;
+  border-color: var(--primary-color) !important;
+}
+
+/* Dark Mode Discount and Transaction Elements */
+[data-theme="dark"] .discount-section,
+[data-theme="dark"] .discount-info,
+[data-theme="dark"] .discount-display {
+  background: var(--background-primary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+[data-theme="dark"] .subtotal,
+[data-theme="dark"] .discount-amount,
+[data-theme="dark"] .total-amount,
+[data-theme="dark"] .payment-total {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .status-bar {
+  background: var(--background-tertiary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+[data-theme="dark"] .status-item {
+  color: var(--text-primary) !important;
+}
+
+/* Dark Mode Form Elements */
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background: var(--background-secondary) !important;
+  color: var(--text-primary) !important;
+  border: 2px solid var(--border-color) !important;
+}
+
+[data-theme="dark"] select:focus,
+[data-theme="dark"] textarea:focus {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 3px rgba(147, 179, 199, 0.3) !important;
+}
+
+[data-theme="dark"] option {
+  background: var(--background-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Dark Mode Product Grid and Empty States */
+[data-theme="dark"] .cart-empty {
+  color: var(--text-muted) !important;
+  background: var(--background-secondary) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: var(--border-radius) !important;
+  padding: var(--spacing-4) !important;
+}
+
+[data-theme="dark"] .cart-empty small {
+  color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .products-count {
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-light)) !important;
+  color: var(--gray-900) !important;
+}
+
+[data-theme="dark"] .section-divider {
+  border-color: var(--border-color) !important;
+}
+
+/* Dark Mode Table Elements */
+[data-theme="dark"] table {
+  background: var(--background-primary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+[data-theme="dark"] th,
+[data-theme="dark"] td {
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] th {
+  background: var(--background-secondary) !important;
+}
+
+[data-theme="dark"] tr:hover {
+  background: var(--background-secondary) !important;
+}
+
+/* Dark Mode Delete Button Specific */
+[data-theme="dark"] .delete-item-btn {
+  background: var(--danger-color) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--danger-color) !important;
+}
+
+[data-theme="dark"] .delete-item-btn:hover {
+  background: #f87171 !important;
+  box-shadow: 0 4px 8px rgba(248, 113, 113, 0.3) !important;
+}
+
+/* Override inline styles for dark mode dialogs and popups */
+[data-theme="dark"] div[style*="position: fixed"],
+[data-theme="dark"] div[style*="z-index"],
+[data-theme="dark"] div[style*="background"] {
+  background: var(--background-primary) !important;
+  color: var(--text-primary) !important;
+  border: 2px solid var(--border-color) !important;
+}
+
+[data-theme="dark"] div[style*="background: white"],
+[data-theme="dark"] div[style*="background: #fff"],
+[data-theme="dark"] div[style*="background-color: white"],
+[data-theme="dark"] div[style*="background-color: #fff"] {
+  background: var(--background-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] div[style*="color: black"],
+[data-theme="dark"] div[style*="color: #000"],
+[data-theme="dark"] div[style*="color: #333"] {
+  color: var(--text-primary) !important;
+}
+
+/* Specific override for modal backdrop */
+[data-theme="dark"] div[style*="background: rgba(0, 0, 0, 0.5)"],
+[data-theme="dark"] div[style*="background-color: rgba(0, 0, 0, 0.5)"] {
+  background: rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Additional element overrides for comprehensive coverage */
+[data-theme="dark"] .price-display,
+[data-theme="dark"] .amount-display,
+[data-theme="dark"] .currency-display {
+  color: var(--secondary-color) !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="dark"] .label,
+[data-theme="dark"] .field-label,
+[data-theme="dark"] .form-label {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .divider,
+[data-theme="dark"] hr {
+  border-color: var(--border-color) !important;
+  background: var(--border-color) !important;
+}
+
+/* Ensure all text elements are visible */
+[data-theme="dark"] strong,
+[data-theme="dark"] b,
+[data-theme="dark"] em,
+[data-theme="dark"] i {
+  color: var(--text-primary) !important;
+}
+
+/* List elements */
+[data-theme="dark"] ul,
+[data-theme="dark"] ol,
+[data-theme="dark"] li {
+  color: var(--text-primary) !important;
+}
+
+/* Any remaining generic elements */
+[data-theme="dark"] .content,
+[data-theme="dark"] .main,
+[data-theme="dark"] .container,
+[data-theme="dark"] .wrapper {
+  background: var(--background-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Dark Mode Dialog and Modal Overrides */
+[data-theme="dark"] .custom-confirm-dialog {
+  background: var(--background-primary) !important;
+  border: 2px solid var(--border-color) !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8) !important;
+}
+
+[data-theme="dark"] .custom-confirm-dialog > div:first-child {
+  background: linear-gradient(135deg, var(--danger-color) 0%, #dc2626 100%) !important;
+}
+
+[data-theme="dark"] .custom-confirm-dialog > div:nth-child(2) {
+  background: var(--background-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .custom-confirm-dialog > div:nth-child(2) > div {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .custom-confirm-dialog > div:last-child {
+  background: var(--background-secondary) !important;
+  border-top: 1px solid var(--border-color) !important;
+}
+
+[data-theme="dark"] .custom-confirm-dialog button {
+  background: var(--background-tertiary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .custom-confirm-dialog button:last-child {
+  background: var(--danger-color) !important;
+  color: white !important;
+}
+
+/* Dark Mode Payment Popup Overrides */
+[data-theme="dark"] .payment-popup {
+  background: var(--background-primary) !important;
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8) !important;
+}
+
+[data-theme="dark"] .payment-popup-header {
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)) !important;
+  border-bottom-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .payment-popup-body {
+  background: var(--background-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .payment-popup-footer {
+  background: var(--background-secondary) !important;
+  border-top-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .payment-popup-footer button {
+  background: var(--background-tertiary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+/* Dark Mode Modal Component Overrides */
+[data-theme="dark"] .modal {
+  background: var(--background-primary) !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8) !important;
+}
+
+[data-theme="dark"] .modal-header {
+  background: var(--background-secondary) !important;
+  border-bottom-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .modal-title {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .modal-close {
+  color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .modal-close:hover {
+  background: var(--background-tertiary) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .modal-body {
+  background: var(--background-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .modal-footer {
+  background: var(--background-secondary) !important;
+  border-top-color: var(--border-color) !important;
+}
+
+/* Dark Mode Cash Calculator Overrides */
+[data-theme="dark"] .cash-calculator {
+  background: var(--background-primary) !important;
+  border: 2px solid var(--border-color) !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8) !important;
+}
+
+[data-theme="dark"] .cash-calculator-header {
+  background: linear-gradient(135deg, var(--success-color), #059669) !important;
+  border-bottom-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .cash-calculator-header h3 {
+  color: white !important;
+}
+
+[data-theme="dark"] .cash-calculator-body {
+  background: var(--background-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .cash-calculator-footer {
+  background: var(--background-secondary) !important;
+  border-top-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .order-summary {
+  background: var(--background-secondary) !important;
+  border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .order-total {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .amount-input-section label {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .amount-input {
+  background: var(--background-secondary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .amount-input:focus {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 3px rgba(147, 179, 199, 0.3) !important;
+}
+
+[data-theme="dark"] .quick-amount-btn {
+  background: var(--background-tertiary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .quick-amount-btn:hover {
+  background: var(--primary-color) !important;
+  color: white !important;
+}
+
+[data-theme="dark"] .change-calculation {
+  background: var(--background-secondary) !important;
+  border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .change-summary {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .error-message {
+  color: var(--danger-color) !important;
+}
+
+/* Dark Mode Alert Component Overrides */
+[data-theme="dark"] .custom-alert {
+  background: var(--background-primary) !important;
+  border: 2px solid var(--border-color) !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8) !important;
+}
+
+[data-theme="dark"] .custom-alert-header {
+  background: var(--background-secondary) !important;
+  border-bottom-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .custom-alert-title {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .custom-alert-body {
+  background: var(--background-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .custom-alert-message {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .custom-alert-footer {
+  background: var(--background-secondary) !important;
+  border-top-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .custom-alert-button {
+  background: var(--primary-color) !important;
+  color: white !important;
+  border-color: var(--primary-color) !important;
+}
+
+[data-theme="dark"] .custom-alert-button:hover {
+  background: var(--primary-dark) !important;
+}
+
+/* Dark Mode Alert Type Variants */
+[data-theme="dark"] .custom-alert.success .custom-alert-header {
+  background: linear-gradient(135deg, var(--success-color), #059669) !important;
+}
+
+[data-theme="dark"] .custom-alert.warning .custom-alert-header {
+  background: linear-gradient(135deg, var(--warning-color), #d97706) !important;
+}
+
+[data-theme="dark"] .custom-alert.danger .custom-alert-header {
+  background: linear-gradient(135deg, var(--danger-color), #dc2626) !important;
+}
+
+[data-theme="dark"] .custom-alert.info .custom-alert-header {
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)) !important;
+}
+
+/* Dark Mode Form Elements and Additional UI Components */
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background: var(--background-secondary) !important;
+  color: var(--text-primary) !important;
+  border: 2px solid var(--border-color) !important;
+}
+
+[data-theme="dark"] select:focus,
+[data-theme="dark"] textarea:focus {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 3px rgba(147, 179, 199, 0.3) !important;
+}
+
+[data-theme="dark"] .dropdown,
+[data-theme="dark"] .dropdown-menu {
+  background: var(--background-primary) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .dropdown-item {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .dropdown-item:hover {
+  background: var(--background-secondary) !important;
+}
+
+/* Dark Mode Badges and Labels */
+[data-theme="dark"] .badge,
+[data-theme="dark"] .label {
+  background: var(--background-tertiary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+/* Dark Mode Table Components */
+[data-theme="dark"] table,
+[data-theme="dark"] .table {
+  background: var(--background-primary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] th,
+[data-theme="dark"] td {
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] thead {
+  background: var(--background-secondary) !important;
+}
+
+[data-theme="dark"] tbody tr:hover {
+  background: var(--background-secondary) !important;
+}
+
+/* Dark Mode Tooltips and Popovers */
+[data-theme="dark"] .tooltip,
+[data-theme="dark"] .popover {
+  background: var(--background-primary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
 }
 
 /* Stock Indicator Consistency */
