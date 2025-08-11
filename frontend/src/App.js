@@ -54,6 +54,154 @@ const CustomAlert = ({ alert, onClose }) => {
   );
 };
 
+// Custom Confirmation Dialog Component
+const CustomConfirmDialog = ({ isVisible, message, onConfirm, onCancel }) => {
+  if (!isVisible) return null;
+
+  // Enhanced message formatting
+  const formatMessage = (message) => {
+    return message
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .split('\n').map((line, index) => (
+        <div key={index} style={{ marginBottom: index < message.split('\n').length - 1 ? '8px' : '0' }}>
+          <span dangerouslySetInnerHTML={{ __html: line }} />
+        </div>
+      ));
+  };
+
+  return (
+    <div 
+      className="custom-alert-overlay"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 10000,
+        animation: 'fadeIn 0.3s ease-out'
+      }}
+      onClick={onCancel}
+    >
+      <div 
+        className="custom-confirm-dialog"
+        style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '12px',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+          padding: 0,
+          minWidth: '400px',
+          maxWidth: '500px',
+          maxHeight: '80vh',
+          overflow: 'hidden',
+          animation: 'slideInUp 0.3s ease-out'
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div style={{
+          background: 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)',
+          color: 'white',
+          padding: '16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <span style={{ fontSize: '24px' }}>⚠️</span>
+          <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>
+            Confirm Action
+          </h3>
+        </div>
+
+        {/* Body */}
+        <div style={{ 
+          padding: '16px',
+          backgroundColor: '#ffffff',
+          color: '#333333',
+          lineHeight: '1.6'
+        }}>
+          <div style={{ 
+            fontSize: '16px',
+            whiteSpace: 'pre-wrap',
+            color: '#333333'
+          }}>
+            {formatMessage(message)}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          padding: '16px',
+          borderTop: '1px solid #e0e0e0',
+          display: 'flex',
+          gap: '12px',
+          justifyContent: 'flex-end',
+          backgroundColor: '#f5f5f5'
+        }}>
+          <button
+            onClick={onCancel}
+            style={{
+              padding: '12px 24px',
+              border: '2px solid #d0d0d0',
+              borderRadius: '8px',
+              backgroundColor: 'transparent',
+              color: '#333333',
+              fontSize: '16px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              minWidth: '100px'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = '#f0f0f0';
+              e.target.style.transform = 'translateY(-1px)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = 'transparent';
+              e.target.style.transform = 'translateY(0)';
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            style={{
+              padding: '12px 24px',
+              border: 'none',
+              borderRadius: '8px',
+              backgroundColor: '#f44336',
+              color: 'white',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              minWidth: '100px',
+              boxShadow: '0 2px 8px rgba(244, 67, 54, 0.3)'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = '#d32f2f';
+              e.target.style.transform = 'translateY(-1px)';
+              e.target.style.boxShadow = '0 4px 12px rgba(244, 67, 54, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = '#f44336';
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = '0 2px 8px rgba(244, 67, 54, 0.3)';
+            }}
+          >
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Payment Processing Popup Component
 const PaymentProcessingPopup = ({ isVisible, step, progress, onCancel }) => {
   if (!isVisible) return null;
@@ -383,6 +531,8 @@ function App() {
   const [terminal, setTerminal] = useState(null);
   const [reader, setReader] = useState(null);
   const [currentAlert, setCurrentAlert] = useState(null);
+  const [confirmDialogVisible, setConfirmDialogVisible] = useState(false);
+  const [confirmDialogData, setConfirmDialogData] = useState({ message: '', onConfirm: null });
   const [testMode, setTestMode] = useState(false);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [paymentStep, setPaymentStep] = useState('');
@@ -439,6 +589,24 @@ function App() {
 
   const closeAlert = () => {
     setCurrentAlert(null);
+  };
+
+  // Custom Confirmation Dialog
+  const showConfirmDialog = (message, onConfirm) => {
+    setConfirmDialogData({ message, onConfirm });
+    setConfirmDialogVisible(true);
+  };
+
+  const closeConfirmDialog = () => {
+    setConfirmDialogVisible(false);
+    setConfirmDialogData({ message: '', onConfirm: null });
+  };
+
+  const handleConfirmAction = () => {
+    if (confirmDialogData.onConfirm) {
+      confirmDialogData.onConfirm();
+    }
+    closeConfirmDialog();
   };
 
   // Retry card reader connection
@@ -883,7 +1051,7 @@ function App() {
     const cartItemsText = cart.map(item => `• ${item.name} (${item.quantity}x) - $${(item.price * item.quantity).toFixed(2)}`).join('\n');
     const totalText = `\n\nTotal: $${total.toFixed(2)}`;
     
-    if (window.confirm(`Are you sure you want to cancel this cart?\n\n${cartItemsText}${totalText}\n\nThis action cannot be undone.`)) {
+    const confirmAction = () => {
       // Clear cart and reset all related state
       setCart([]);
       setTotal(0);
@@ -900,7 +1068,12 @@ function App() {
       }
       
       showAlert('**Cart Cancelled**\n\nAll items have been removed from the cart.', 'info');
-    }
+    };
+
+    showConfirmDialog(
+      `Are you sure you want to cancel this cart?\n\n${cartItemsText}${totalText}\n\nThis action cannot be undone.`,
+      confirmAction
+    );
   };
 
   // Quick 10% Discount Function
@@ -1252,6 +1425,14 @@ function App() {
     <div className="app">
       {/* Custom Alert Components */}
       <CustomAlert alert={currentAlert} onClose={closeAlert} />
+      
+      {/* Custom Confirmation Dialog */}
+      <CustomConfirmDialog 
+        isVisible={confirmDialogVisible}
+        message={confirmDialogData.message}
+        onConfirm={handleConfirmAction}
+        onCancel={closeConfirmDialog}
+      />
       
       {/* Payment Processing Popup */}
       <PaymentProcessingPopup 
@@ -2017,14 +2198,53 @@ function App() {
             <div className="popup-body">
               {/* Product Name Input */}
               <div style={{ marginBottom: 'var(--spacing-4)' }}>
-                <label style={{ 
-                  display: 'block', 
-                  marginBottom: 'var(--spacing-2)', 
-                  fontWeight: '600',
-                  color: 'var(--text-color)'
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  marginBottom: 'var(--spacing-2)' 
                 }}>
-                  Product Name
-                </label>
+                  <label style={{ 
+                    fontWeight: '600',
+                    color: 'var(--text-color)',
+                    margin: 0
+                  }}>
+                    Product Name
+                  </label>
+                  
+                  {/* Calculator Icon Button */}
+                  <button
+                    onClick={openStandaloneCalculator}
+                    title="Open Calculator"
+                    style={{
+                      width: '40px',
+                      height: '40px',
+                      border: '2px solid var(--primary-color)',
+                      borderRadius: 'var(--border-radius)',
+                      backgroundColor: 'transparent',
+                      color: 'var(--primary-color)',
+                      fontSize: '18px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.backgroundColor = 'var(--primary-color)';
+                      e.target.style.color = 'white';
+                      e.target.style.transform = 'scale(1.05)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.backgroundColor = 'transparent';
+                      e.target.style.color = 'var(--primary-color)';
+                      e.target.style.transform = 'scale(1)';
+                    }}
+                  >
+                    🧮
+                  </button>
+                </div>
                 <input
                   type="text"
                   value={otherProductName}
@@ -2267,37 +2487,6 @@ function App() {
                       onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
                     />
                   </div>
-                  
-                  {/* Calculator Icon Button */}
-                  <button
-                    onClick={openStandaloneCalculator}
-                    title="Open Calculator"
-                    style={{
-                      width: '50px',
-                      height: '50px',
-                      border: '2px solid var(--primary-color)',
-                      borderRadius: 'var(--border-radius)',
-                      backgroundColor: 'transparent',
-                      color: 'var(--primary-color)',
-                      fontSize: '20px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.backgroundColor = 'var(--primary-color)';
-                      e.target.style.transform = 'scale(1.05)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.backgroundColor = 'transparent';
-                      e.target.style.transform = 'scale(1)';
-                    }}
-                  >
-                    🧮
-                  </button>
                 </div>
               </div>
 

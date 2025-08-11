@@ -22,6 +22,8 @@ const app = express();
 const corsOptions = {
   origin: [
     'http://localhost:3000', // Local development
+    'http://localhost:3001', // Local development (alternative port)
+    'http://localhost:3002', // Local development (alternative port)
     'https://localhost:3000', // Local HTTPS
     /^https:\/\/.*\.netlify\.app$/, // Netlify deployments
     /^https:\/\/.*\.vercel\.app$/, // Vercel deployments (alternative)
@@ -536,11 +538,15 @@ app.post('/update-inventory', async (req, res) => {
 
 // Stripe Terminal
 app.post('/connection_token', async (req, res) => {
+  console.log('🔑 Connection token request received');
   try {
+    console.log('📡 Creating Stripe Terminal connection token...');
     const { secret } = await stripe.terminal.connectionTokens.create();
+    console.log('✅ Connection token created successfully');
     res.json({ secret });
   } catch (err) {
-    console.error('Conn token error:', err.message, err.stack);
+    console.error('❌ Connection token error:', err.message);
+    console.error('📋 Error details:', err.stack);
     res.status(500).json({ error: err.message });
   }
 });

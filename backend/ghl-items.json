@@ -81,13 +81,13 @@
     "productId": "68844dda862c0c80618f6e59",
     "priceId": "68844dda360ca15ad496f235",
     "price": 4.5,
-    "quantity": 11
+    "quantity": 10
   },
   {
     "name": "Slushie 16 oz - Mixed",
     "productId": "68844ddd862c0c39d68f6e5f",
     "priceId": "68844ddd360ca166ea96f238",
     "price": 4.5,
-    "quantity": 20
+    "quantity": 19
   }
 ]
