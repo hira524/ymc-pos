@@ -4,21 +4,21 @@
     "productId": "68844dba07a263bf2429b635",
     "priceId": "68844dbb862c0c94d28f6e3a",
     "price": 1,
-    "quantity": 10
+    "quantity": 8
   },
   {
     "name": "250ml Pop Top - Apple & Blackcurrant",
     "productId": "68844dbd4aff8336ff35d2d1",
     "priceId": "68844dbd360ca1259096f21b",
     "price": 2.5,
-    "quantity": 19
+    "quantity": 17
   },
   {
     "name": "250ml Pop Top - Apple",
     "productId": "68844dc007a263355829b640",
     "priceId": "68844dc0862c0cb2e88f6e3e",
     "price": 2.5,
-    "quantity": 15
+    "quantity": 14
   },
   {
     "name": "250ml Soft Drink Can - Sprite",
@@ -32,14 +32,14 @@
     "productId": "68844dc6360ca1ce0796f21f",
     "priceId": "68844dc64aff83fcfe35d2da",
     "price": 2,
-    "quantity": 19
+    "quantity": 18
   },
   {
     "name": "250ml Soft Drink Can - Coke Zero",
     "productId": "68844dc94aff835c6935d2dd",
     "priceId": "68844dc9360ca1e24696f225",
     "price": 2,
-    "quantity": 15
+    "quantity": 14
   },
   {
     "name": "250ml Soft Drink Can - Fanta",
@@ -74,7 +74,7 @@
     "productId": "68844dd7360ca1a3a896f233",
     "priceId": "68844dd8862c0cd62e8f6e56",
     "price": 4.5,
-    "quantity": 17
+    "quantity": 16
   },
   {
     "name": "Slushie 16 oz - Berry Blast",
