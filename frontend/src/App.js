@@ -335,24 +335,6 @@ const CashCalculatorPopup = ({ isVisible, orderTotal, onComplete, onCancel }) =>
     setError('');
   };
 
-  const handleNumberClick = (num) => {
-    if (amountReceived.includes('.') && num === '.') return;
-    if (amountReceived.length >= 10) return;
-    
-    const newAmount = amountReceived + num;
-    handleAmountChange(newAmount);
-  };
-
-  const handleClear = () => {
-    setAmountReceived('');
-    setError('');
-  };
-
-  const handleBackspace = () => {
-    setAmountReceived(amountReceived.slice(0, -1));
-    setError('');
-  };
-
   const handleComplete = () => {
     if (!isValidPayment) {
       setError('Amount received must be greater than or equal to the total');
