@@ -818,9 +818,9 @@ function App() {
 
       // Configure reader discovery based on test mode
       const discoverConfig = isTestMode ? 
-        { simulated: true } : // Test mode: use simulated readers
+        { simulated: false } : // Test mode: use simulated readers
         { 
-          simulated: false,
+          simulated: true,
           location: process.env.REACT_APP_STRIPE_LOCATION_ID || 'tml_GBoQHwGS5rcO0D'
         };
       
