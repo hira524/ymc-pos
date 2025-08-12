@@ -22,3 +22,117 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# Logs
+*.log
+logs/
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Build outputs
+build/
+dist/
+.build/
+
+# Markdown documentation files
+*.md
+*.MD
+CHANGELOG.md
+CONTRIBUTING.md
+LICENSE.md
+README.md
+TROUBLESHOOTING.md
+TESTING_GUIDE.md
+PAYMENT_FIXES_COMPLETE.md
+PAYMENT_POPUP_GUIDE.md
+INVENTORY_TRAINING_GUIDE.md
+CSS_DOCUMENTATION.md
+CANCEL_BUTTON_FIX.md
+CLOUD_DEPLOYMENT.md
+STRIPE_SETUP_GUIDE.md
+TEST_MODE_SETUP.md
+render-deployment-checklist.md
+
+# Test files
+*.test.js
+*.spec.js
+test/
+tests/
+__tests__/
+coverage/
+.nyc_output/
+jest.config.js
+SIMULATION_TEST_GUIDE.js
+
+# PowerShell scripts
+*.ps1
+manage-pos.ps1
+pos-test.ps1
+stripe-diagnostics.ps1
+stripe-reader-setup.ps1
+test-connections.ps1
+test-reader.ps1
+
+# Diagnostic and test files
+*-diagnostic.js
+*-test.js
+test-*.js
+stripe-account-diagnostic.js
+stripe-test.js
+test-stripe-config.js
+health-check.js
+deep-reader-analysis.js
+test-discovery-methods.js
+test-frontend-discovery.js
+
+# Environment variable files
+NETLIFY_ENV_VARS.txt
+RENDER_ENV_VARS.txt
+RENDER_ENVIRONMENT_VARIABLES_CORRECTED.txt
+
+# Token and config files
+tokens.json
+config.json
+
+# Build scripts
+build.sh
+
+# JSON data files (keep if needed, remove if not)
+ghl-items.json
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.temp
