@@ -50,17 +50,21 @@ async function diagnosticStripeAccount() {
     console.log('\n5️⃣ Testing Payment Intent Creation...');
     try {
       const paymentIntent = await stripe.paymentIntents.create({
-        amount: 100, // $1.00
-        currency: 'usd',
+        amount: 100, // $1.00 AUD
+        currency: 'aud', // Changed to Australian Dollars
         payment_method_types: ['card_present'],
         capture_method: 'automatic'
       });
       console.log('   ✅ Payment Intent creation successful');
       console.log(`   Payment Intent ID: ${paymentIntent.id}`);
+      console.log(`   Amount: ${paymentIntent.amount / 100} AUD`);
     } catch (error) {
       console.log('   ❌ Payment Intent Error:', error.message);
       if (error.message.includes('card_present')) {
         console.log('   📝 Action Required: Check Terminal setup or country restrictions');
+      }
+      if (error.message.includes('currency')) {
+        console.log('   📝 Currency Issue: Your account may not support AUD transactions');
       }
     }
     
@@ -110,19 +114,33 @@ async function diagnosticStripeAccount() {
     }
     
     console.log('\n✅ Diagnostic Complete!');
-    console.log('\n📋 Summary of Required Actions:');
-    console.log('1. Ensure Terminal is enabled in Stripe Dashboard');
-    console.log('2. Create at least one Terminal location');
-    console.log('3. For physical readers: Register the BBPOS device');
-    console.log('4. Ensure account is fully activated (not restricted)');
+    console.log('\n📋 Summary of Required Actions for LIVE Production Setup:');
+    console.log('1. ✅ Ensure Terminal is enabled in Stripe Dashboard (LIVE mode)');
+    console.log('2. ✅ Create at least one Terminal location for your business');
+    console.log('3. 🔧 For physical readers: Register your BBPOS/WisePad device');
+    console.log('4. ✅ Ensure live account is fully activated and verified');
+    console.log('5. 💳 Test with real cards (small amounts) to verify end-to-end flow');
+    console.log('6. 🌐 Ensure your business location supports Terminal (check country/region)');
+    console.log('\n🔗 Important Links:');
+    console.log('   Dashboard: https://dashboard.stripe.com/terminal/locations');
+    console.log('   Readers: https://dashboard.stripe.com/terminal/readers');
+    console.log('   Account: https://dashboard.stripe.com/account');
     
   } catch (error) {
     console.error('❌ Diagnostic failed:', error.message);
     
     if (error.type === 'StripeAuthenticationError') {
-      console.log('\n🔑 Authentication Error - Check your Stripe key:');
-      console.log('- Ensure the key is correct and not expired');
-      console.log('- Check if using test key vs live key appropriately');
+      console.log('\n🔑 Authentication Error - Check your LIVE Stripe key:');
+      console.log('- Ensure the LIVE secret key is correct and not expired');
+      console.log('- Verify you\'re using sk_live_... not sk_test_...');
+      console.log('- Check if your live account is fully activated');
+      console.log('- Ensure Terminal is enabled for your live account');
+    }
+    
+    if (error.type === 'StripePermissionError') {
+      console.log('\n🔒 Permission Error:');
+      console.log('- Your live account may not have Terminal enabled');
+      console.log('- Contact Stripe support to enable Terminal for live mode');
     }
   }
 }
