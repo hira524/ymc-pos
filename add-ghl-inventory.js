@@ -22,36 +22,7 @@ const items = [
   { name: 'Slushie 16 oz - Berry Blast', price: 4.5, quantity: 20 },
   { name: 'Slushie 16 oz - Mixed', price: 4.5, quantity: 20 },
   
-  // Walk-in Passes - Full Price
-  { name: 'Walk-in Pass - Adult (Full Price)', price: 15, quantity: 100 },
-  { name: 'Walk-in Pass - Child (Full Price)', price: 10, quantity: 100 },
-  { name: 'Walk-in Pass - Senior (Full Price)', price: 12, quantity: 100 },
-  { name: 'Walk-in Pass - Student (Full Price)', price: 12, quantity: 100 },
-  { name: 'Walk-in Pass - Family (2 Adults + 2 Kids)', price: 45, quantity: 50 },
   
-  // Walk-in Passes - Half Price
-  { name: 'Walk-in Pass - Adult (Half Price)', price: 7.5, quantity: 100 },
-  { name: 'Walk-in Pass - Child (Half Price)', price: 5, quantity: 100 },
-  { name: 'Walk-in Pass - Senior (Half Price)', price: 6, quantity: 100 },
-  { name: 'Walk-in Pass - Student (Half Price)', price: 6, quantity: 100 },
-  { name: 'Walk-in Pass - Family (Half Price)', price: 22.5, quantity: 50 },
-  
-  // Walk-in Passes - Staff Discount (10% off full price)
-  { name: 'Walk-in Pass - Adult (Staff Discount)', price: 13.5, quantity: 100 },
-  { name: 'Walk-in Pass - Child (Staff Discount)', price: 9, quantity: 100 },
-  { name: 'Walk-in Pass - Senior (Staff Discount)', price: 10.8, quantity: 100 },
-  { name: 'Walk-in Pass - Student (Staff Discount)', price: 10.8, quantity: 100 },
-  { name: 'Walk-in Pass - Family (Staff Discount)', price: 40.5, quantity: 50 },
-  
-  // Day Passes
-  { name: 'Day Pass - Adult', price: 25, quantity: 50 },
-  { name: 'Day Pass - Child', price: 15, quantity: 50 },
-  { name: 'Day Pass - Senior/Student', price: 20, quantity: 50 },
-  
-  // Special Event Passes
-  { name: 'Special Event - Adult', price: 20, quantity: 30 },
-  { name: 'Special Event - Child', price: 12, quantity: 30 },
-  { name: 'Special Event - Family Package', price: 55, quantity: 20 },
 ];
 
 function getAccessToken() {

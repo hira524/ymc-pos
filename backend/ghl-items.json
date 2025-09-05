@@ -89,5 +89,25 @@
     "priceId": "68844ddd360ca166ea96f238",
     "price": 4.5,
     "quantity": 19
+  },
+  {
+    "name": "test",
+    "productId": "manual-1756947735437-3qu1sh",
+    "priceId": "price-1756947735437-3qu1sh",
+    "price": 12,
+    "quantity": 12,
+    "description": "test",
+    "isManual": true,
+    "createdAt": "2025-09-04T01:02:15.437Z"
+  },
+  {
+    "name": "test2",
+    "productId": "manual-1756947982043-124q3c",
+    "priceId": "price-1756947982043-124q3c",
+    "price": 22,
+    "quantity": 23,
+    "description": "w",
+    "isManual": true,
+    "createdAt": "2025-09-04T01:06:22.043Z"
   }
 ]
