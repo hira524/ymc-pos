@@ -103,33 +103,265 @@ const DEMO_INVENTORY = [
 ];
 
 const TOKEN_FILE = './tokens.json';
+const SYNC_CACHE_FILE = './sync-cache.json';
+let tokenRefreshInProgress = false;
+let lastSyncTime = null;
+let cachedInventory = null;
+let syncInterval = null;
+
+// Token management functions
 function getTokens() {
   if (!fs.existsSync(TOKEN_FILE)) return null;
   return JSON.parse(fs.readFileSync(TOKEN_FILE, 'utf8'));
 }
+
 function saveTokens(tok) {  
   fs.writeFileSync(TOKEN_FILE, JSON.stringify(tok, null, 2));
+  console.log('🔑 Tokens saved successfully');
 }
+
+function isTokenExpired(token) {
+  if (!token) return true;
+  try {
+    // Decode JWT payload (without verification)
+    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+    const now = Math.floor(Date.now() / 1000);
+    const bufferTime = 300; // 5 minutes buffer before actual expiry
+    return payload.exp && (payload.exp - bufferTime) < now;
+  } catch (error) {
+    console.error('Token expiry check failed:', error);
+    return true; // Assume expired if we can't parse it
+  }
+}
+
 async function refreshAccessToken() {
-  const tok = getTokens();
-  if (!tok || !tok.refresh_token) throw new Error('No refresh token – please re-authorize via /auth');
-  const res = await axios.post(
-    'https://services.leadconnectorhq.com/oauth/token',
-    qs.stringify({
-      grant_type: 'refresh_token',
-      refresh_token: tok.refresh_token,
-      client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET
-    }),
-    { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-  );
-  saveTokens(res.data);
-  return res.data.access_token;
+  if (tokenRefreshInProgress) {
+    console.log('🔄 Token refresh already in progress, waiting...');
+    // Wait for the refresh to complete
+    while (tokenRefreshInProgress) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    return getTokens()?.access_token;
+  }
+
+  tokenRefreshInProgress = true;
+  try {
+    const tok = getTokens();
+    if (!tok || !tok.refresh_token) {
+      throw new Error('No refresh token – please re-authorize via /auth');
+    }
+
+    console.log('🔄 Refreshing access token...');
+    const res = await axios.post(
+      'https://services.leadconnectorhq.com/oauth/token',
+      qs.stringify({
+        grant_type: 'refresh_token',
+        refresh_token: tok.refresh_token,
+        client_id: CLIENT_ID,
+        client_secret: CLIENT_SECRET
+      }),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+    );
+    
+    // Add timestamp for token tracking
+    const tokenData = {
+      ...res.data,
+      refreshed_at: Date.now(),
+      expires_at: Date.now() + (res.data.expires_in * 1000)
+    };
+    
+    saveTokens(tokenData);
+    console.log('✅ Access token refreshed successfully');
+    console.log(`🕒 Token valid until: ${new Date(tokenData.expires_at).toLocaleString()}`);
+    
+    return res.data.access_token;
+  } catch (error) {
+    console.error('❌ Failed to refresh access token:', error.response?.data || error.message);
+    
+    // If refresh token is invalid, clear tokens and provide helpful message
+    if (error.response?.data?.error === 'invalid_grant') {
+      console.log('🔑 Refresh token expired. Clearing stored tokens.');
+      console.log('👉 Visit http://localhost:5000/auth to re-authorize with GHL');
+      
+      // Clear invalid tokens
+      try {
+        if (fs.existsSync('./tokens.json')) {
+          fs.unlinkSync('./tokens.json');
+        }
+      } catch (cleanupError) {
+        console.error('Error clearing tokens:', cleanupError);
+      }
+    }
+    
+    throw error;
+  } finally {
+    tokenRefreshInProgress = false;
+  }
 }
-async function getAccessToken() {
+
+async function getValidAccessToken() {
   const tok = getTokens();
   if (!tok) throw new Error('No tokens – visit /auth to authorize');
+  
+  // Check if token is expired or about to expire
+  if (isTokenExpired(tok.access_token)) {
+    console.log('🔄 Token expired, refreshing...');
+    return await refreshAccessToken();
+  }
+  
   return tok.access_token;
+}
+
+// Legacy function for backward compatibility
+async function getAccessToken() {
+  return await getValidAccessToken();
+}
+
+// Product synchronization functions
+function getSyncCache() {
+  try {
+    if (fs.existsSync(SYNC_CACHE_FILE)) {
+      return JSON.parse(fs.readFileSync(SYNC_CACHE_FILE, 'utf8'));
+    }
+  } catch (error) {
+    console.error('Error reading sync cache:', error);
+  }
+  return { lastSync: null, products: [] };
+}
+
+function saveSyncCache(data) {
+  try {
+    fs.writeFileSync(SYNC_CACHE_FILE, JSON.stringify(data, null, 2));
+  } catch (error) {
+    console.error('Error saving sync cache:', error);
+  }
+}
+
+async function fetchProductsFromGHL() {
+  try {
+    const token = await getValidAccessToken();
+    console.log('🔍 Fetching products from GHL API...');
+    
+    const apiUrl = `${BASE_URL}/products/?locationId=${LOCATION_ID}`;
+    const response = await axios.get(apiUrl, {
+      headers: { 
+        Authorization: `Bearer ${token}`, 
+        'Version': '2021-04-15',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      timeout: 15000 // 15 second timeout
+    });
+
+    let products = [];
+    if (response.data.products && Array.isArray(response.data.products)) {
+      products = response.data.products;
+    } else if (response.data.data && Array.isArray(response.data.data)) {
+      products = response.data.data;
+    } else if (Array.isArray(response.data)) {
+      products = response.data;
+    }
+
+    const inventory = products.map((p, index) => {
+      const price = p.prices && p.prices[0] ? p.prices[0] : { 
+        amount: 0, 
+        availableQuantity: 0, 
+        id: `no-price-${index}` 
+      };
+      return {
+        id: p.id || `ghl-product-${index}`,
+        name: p.name || `Product ${index + 1}`,
+        price: parseFloat(price.amount) || 0,
+        quantity: parseInt(price.availableQuantity) || 0,
+        priceId: price.id || `no-price-${index}`,
+        description: p.description || `GHL Product: ${p.name || 'Unnamed'}`,
+        image: p.image || null,
+        lastSynced: new Date().toISOString(),
+        source: 'ghl'
+      };
+    });
+
+    console.log(`✅ Successfully fetched ${inventory.length} products from GHL`);
+    return inventory;
+  } catch (error) {
+    console.error('❌ Failed to fetch products from GHL:', error.response?.data || error.message);
+    throw error;
+  }
+}
+
+async function syncProducts() {
+  try {
+    console.log('🔄 Starting product synchronization...');
+    const products = await fetchProductsFromGHL();
+    
+    // Update cached inventory
+    cachedInventory = products;
+    lastSyncTime = new Date();
+    
+    // Save to sync cache
+    saveSyncCache({
+      lastSync: lastSyncTime.toISOString(),
+      products: products
+    });
+    
+    // Update local ghl-items.json file for backward compatibility
+    const ghlItemsPath = path.join(__dirname, 'ghl-items.json');
+    const ghlItems = products.map(p => ({
+      name: p.name,
+      productId: p.id,
+      priceId: p.priceId,
+      price: p.price,
+      quantity: p.quantity,
+      description: p.description,
+      lastSynced: p.lastSynced
+    }));
+    
+    fs.writeFileSync(ghlItemsPath, JSON.stringify(ghlItems, null, 2));
+    
+    console.log(`✅ Product sync completed. ${products.length} products synchronized.`);
+    return products;
+  } catch (error) {
+    console.error('❌ Product synchronization failed:', error);
+    
+    // Return cached data if available
+    if (cachedInventory) {
+      console.log('📦 Returning cached inventory due to sync failure');
+      return cachedInventory;
+    }
+    
+    // Load from sync cache as fallback
+    const cache = getSyncCache();
+    if (cache.products && cache.products.length > 0) {
+      console.log('📂 Returning inventory from sync cache');
+      cachedInventory = cache.products;
+      return cache.products;
+    }
+    
+    throw error;
+  }
+}
+
+function startProductSync() {
+  // Initial sync
+  syncProducts().catch(error => {
+    console.error('Initial product sync failed:', error);
+  });
+  
+  // Set up periodic sync every 5 minutes
+  if (syncInterval) {
+    clearInterval(syncInterval);
+  }
+  
+  syncInterval = setInterval(async () => {
+    try {
+      await syncProducts();
+      console.log('🔄 Periodic product sync completed');
+    } catch (error) {
+      console.error('Periodic product sync failed:', error);
+    }
+  }, 5 * 60 * 1000); // 5 minutes
+  
+  console.log('🚀 Product synchronization service started (5-minute intervals)');
 }
 
 // OAuth Endpoints
@@ -153,11 +385,102 @@ app.get('/callback', async (req, res) => {
       }),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
     );
-    saveTokens(response.data);
-    res.send('✅ GHL OAuth successful – tokens saved.');
+    
+    // Add timestamp for token tracking
+    const tokenData = {
+      ...response.data,
+      obtained_at: Date.now(),
+      expires_at: Date.now() + (response.data.expires_in * 1000)
+    };
+    
+    saveTokens(tokenData);
+    console.log('✅ Fresh tokens obtained from GHL OAuth');
+    console.log(`🕒 Tokens valid until: ${new Date(tokenData.expires_at).toLocaleString()}`);
+    
+    res.send(`
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+        <h2 style="color: #28a745;">✅ GHL OAuth Successful!</h2>
+        <p><strong>Tokens saved successfully.</strong></p>
+        <p>🕒 <strong>Valid until:</strong> ${new Date(tokenData.expires_at).toLocaleString()}</p>
+        <p>Your POS system will now automatically sync products from GoHighLevel every 5 minutes.</p>
+        <p>🔄 <strong>Automatic token refresh:</strong> Enabled</p>
+        <hr style="margin: 20px 0;">
+        <p><small>You can close this window and return to your POS system.</small></p>
+      </div>
+    `);
+    
+    // Trigger an immediate product sync with fresh tokens
+    setTimeout(() => {
+      syncProducts().then(() => {
+        console.log('🎉 Initial sync completed with fresh tokens!');
+      }).catch(error => {
+        console.error('Initial sync failed even with fresh tokens:', error);
+      });
+    }, 2000);
+    
   } catch (err) {
     console.error('OAuth error:', err.response?.data || err.message);
     res.status(500).send('OAuth Exchange failed: ' + JSON.stringify(err.response?.data || err.message));
+  }
+});
+
+// Token status endpoint
+app.get('/tokens/status', (req, res) => {
+  try {
+    const tokens = getTokens();
+    
+    if (!tokens) {
+      return res.json({
+        status: 'missing',
+        message: 'No tokens found',
+        action: 'Visit /auth to authorize',
+        authUrl: '/auth'
+      });
+    }
+    
+    const isExpired = isTokenExpired(tokens.access_token);
+    const hasRefreshToken = !!tokens.refresh_token;
+    
+    let status = 'valid';
+    let message = 'Tokens are valid and ready';
+    let action = null;
+    
+    if (isExpired && !hasRefreshToken) {
+      status = 'expired';
+      message = 'Tokens expired and no refresh token available';
+      action = 'Visit /auth to re-authorize';
+    } else if (isExpired && hasRefreshToken) {
+      status = 'refresh_needed';
+      message = 'Access token expired but refresh token available';
+      action = 'Automatic refresh will occur on next API call';
+    }
+    
+    const response = {
+      status,
+      message,
+      action,
+      details: {
+        hasAccessToken: !!tokens.access_token,
+        hasRefreshToken: !!tokens.refresh_token,
+        accessTokenExpired: isExpired,
+        obtainedAt: tokens.obtained_at ? new Date(tokens.obtained_at).toLocaleString() : 'Unknown',
+        expiresAt: tokens.expires_at ? new Date(tokens.expires_at).toLocaleString() : 'Unknown',
+        refreshedAt: tokens.refreshed_at ? new Date(tokens.refreshed_at).toLocaleString() : 'Never'
+      }
+    };
+    
+    if (status !== 'valid') {
+      response.authUrl = '/auth';
+    }
+    
+    res.json(response);
+  } catch (error) {
+    console.error('Error checking token status:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to check token status',
+      error: error.message
+    });
   }
 });
 
@@ -175,161 +498,74 @@ app.get('/inventory', async (req, res) => {
   console.log('🔍 Inventory request received');
   
   try {
-    // First, try to use the local ghl-items.json file with actual product data
-    const fs = require('fs');
-    const path = require('path');
-    const ghlItemsPath = path.join(__dirname, 'ghl-items.json');
+    // Check if we should force a refresh
+    const forceRefresh = req.query.refresh === 'true';
+    const maxCacheAge = 5 * 60 * 1000; // 5 minutes
+    const needsRefresh = forceRefresh || !lastSyncTime || 
+                        (Date.now() - lastSyncTime.getTime()) > maxCacheAge;
     
-    if (fs.existsSync(ghlItemsPath)) {
-      console.log('📋 Using local ghl-items.json file with real prices');
-      const localItems = JSON.parse(fs.readFileSync(ghlItemsPath, 'utf8'));
-      
-      // Add default quantities if not present and ensure proper formatting
-      const inventory = localItems.map((item, index) => ({
-        id: item.productId || item.id || `product-${index}`,
-        name: item.name || `Product ${index + 1}`,
-        price: parseFloat(item.price) || 0,
-        quantity: item.quantity || 20, // Default quantity
-        priceId: item.priceId || `price-${index}`,
-        description: item.description || `Product: ${item.name || 'Unnamed'}`,
-        image: item.image || null
-      }));
-      
-      console.log('✅ Local inventory loaded successfully');
-      console.log(`📊 Found ${inventory.length} products with correct prices`);
-      if (inventory.length > 0) {
-        console.log('💰 Sample prices:', inventory.slice(0, 3).map(p => `${p.name}: $${p.price.toFixed(2)}`));
-      }
-      return res.json(inventory);
-    }
-    
-    // If no local file, try to get token for GHL API
-    let token;
-    try {
-      token = await getAccessToken();
-    } catch (tokenErr) {
-      console.error('❌ Token error:', tokenErr.message);
-      // Return empty inventory with error info instead of crashing
-      return res.json({
-        error: 'Authentication required',
-        needsAuth: true,
-        authUrl: 'http://localhost:5000/auth',
-        inventory: []
-      });
-    }
-    
-    console.log('📋 Using location ID:', LOCATION_ID);
-    
-    // Updated API endpoint based on GoHighLevel documentation
-    const apiUrl = `https://services.leadconnectorhq.com/products/?locationId=${LOCATION_ID}`;
-    console.log('🌐 API URL:', apiUrl);
-    
-    const resp = await axios.get(apiUrl, { 
-      headers: { 
-        Authorization: `Bearer ${token}`, 
-        'Version': '2021-04-15',
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      },
-      timeout: 10000 // 10 second timeout
-    });
-    
-    console.log('✅ GHL API Response Status:', resp.status);
-    console.log('📦 Response data structure:', Object.keys(resp.data));
-    
-    // Handle different response structures
-    let products = [];
-    if (resp.data.products && Array.isArray(resp.data.products)) {
-      products = resp.data.products;
-    } else if (resp.data.data && Array.isArray(resp.data.data)) {
-      products = resp.data.data;
-    } else if (Array.isArray(resp.data)) {
-      products = resp.data;
-    } else {
-      console.log('⚠️ Unexpected response structure:', resp.data);
-      // Return empty inventory instead of error
-      return res.json([]);
-    }
-    
-    console.log(`📊 Found ${products.length} products from GHL API`);
-    
-    const inventory = products.map((p, index) => {
-      const price = p.prices && p.prices[0] ? p.prices[0] : { amount: 0, availableQuantity: 0, id: `no-price-${index}` };
-      return {
-        id: p.id || `ghl-product-${index}`,
-        name: p.name || `Product ${index + 1}`,
-        price: parseFloat(price.amount) || 0,
-        quantity: parseInt(price.availableQuantity) || 0,
-        priceId: price.id || `no-price-${index}`,
-        description: p.description || `GHL Product: ${p.name || 'Unnamed'}`,
-        image: p.image || null
-      };
-    });
-    
-    console.log('✅ GHL inventory processed successfully');
-    res.json(inventory);
-    
-  } catch (err) {
-    console.error('❌ Inventory fetch failed:');
-    console.error('Status:', err.response?.status);
-    console.error('Data:', err.response?.data);
-    console.error('Message:', err.message);
-    
-    // Handle authentication errors
-    if (err.response?.status === 401 || err.response?.status === 403) {
-      console.log('🔄 Attempting token refresh...');
+    if (needsRefresh || !cachedInventory) {
+      console.log('� Refreshing inventory from GHL...');
       try {
-        const newToken = await refreshAccessToken();
-        console.log('✅ Token refreshed, retrying request...');
+        const products = await syncProducts();
+        return res.json(products);
+      } catch (syncError) {
+        console.error('❌ Live sync failed, trying cached data:', syncError);
         
-        const retry = await axios.get(
-          `https://services.leadconnectorhq.com/products/?locationId=${LOCATION_ID}`, 
-          {
-            headers: { 
-              Authorization: `Bearer ${newToken}`, 
-              'Version': '2021-04-15',
-              'Accept': 'application/json',
-              'Content-Type': 'application/json'
-            },
-            timeout: 10000
-          }
-        );
-        
-        let products = [];
-        if (retry.data.products && Array.isArray(retry.data.products)) {
-          products = retry.data.products;
-        } else if (retry.data.data && Array.isArray(retry.data.data)) {
-          products = retry.data.data;
-        } else if (Array.isArray(retry.data)) {
-          products = retry.data;
+        // Try to return cached data
+        if (cachedInventory) {
+          console.log('� Returning cached inventory (live sync failed)');
+          return res.json(cachedInventory);
         }
         
-        const inventory = products.map((p, index) => {
-          const price = p.prices && p.prices[0] ? p.prices[0] : { amount: 0, availableQuantity: 0, id: `no-price-${index}` };
-          return {
-            id: p.id || `ghl-product-${index}`,
-            name: p.name || `Product ${index + 1}`,
-            price: parseFloat(price.amount) || 0,
-            quantity: parseInt(price.availableQuantity) || 0,
-            priceId: price.id || `no-price-${index}`,
-            description: p.description || `GHL Product: ${p.name || 'Unnamed'}`,
-            image: p.image || null
-          };
-        });
+        // Try local ghl-items.json file
+        const ghlItemsPath = path.join(__dirname, 'ghl-items.json');
+        if (fs.existsSync(ghlItemsPath)) {
+          console.log('📋 Using local ghl-items.json file (fallback)');
+          const localItems = JSON.parse(fs.readFileSync(ghlItemsPath, 'utf8'));
+          
+          const inventory = localItems.map((item, index) => ({
+            id: item.productId || item.id || `product-${index}`,
+            name: item.name || `Product ${index + 1}`,
+            price: parseFloat(item.price) || 0,
+            quantity: item.quantity || 20,
+            priceId: item.priceId || `price-${index}`,
+            description: item.description || `Product: ${item.name || 'Unnamed'}`,
+            image: item.image || null,
+            source: 'local'
+          }));
+          
+          cachedInventory = inventory; // Cache for next time
+          return res.json(inventory);
+        }
         
-        console.log('✅ Retry successful after token refresh');
-        return res.json(inventory);
-        
-      } catch (refreshErr) {
-        console.error('❌ Token refresh failed:', refreshErr.response?.data || refreshErr.message);
+        // Return demo inventory as last resort
         console.log('🔄 Falling back to demo inventory');
         return res.json(DEMO_INVENTORY);
       }
     }
     
-    // For other errors, fall back to demo inventory
-    console.log('🔄 Falling back to demo inventory due to API error');
-    console.log('💡 To use real products, ensure your .env file has correct GHL credentials');
+    // Return cached inventory
+    if (cachedInventory) {
+      console.log('📦 Returning cached inventory (fresh)');
+      return res.json(cachedInventory);
+    }
+    
+    // This shouldn't happen, but just in case
+    console.log('⚠️ No inventory available, forcing sync...');
+    const products = await syncProducts();
+    return res.json(products);
+    
+  } catch (err) {
+    console.error('❌ Inventory fetch failed:', err);
+    
+    // Return any available fallback data
+    if (cachedInventory) {
+      console.log('� Returning cached inventory (error fallback)');
+      return res.json(cachedInventory);
+    }
+    
+    console.log('🔄 Falling back to demo inventory (complete failure)');
     res.json(DEMO_INVENTORY);
   }
 });
@@ -369,9 +605,9 @@ app.post('/update-inventory', async (req, res) => {
   console.log('📦 Inventory update request received');
   console.log('🛒 Cart data:', JSON.stringify(cart, null, 2));
   
-  // Check if we're using local inventory file
+  // Check if we're using local inventory file (for offline mode)
   const ghlItemsPath = path.join(__dirname, 'ghl-items.json');
-  const useLocalInventory = fs.existsSync(ghlItemsPath);
+  const useLocalInventory = fs.existsSync(ghlItemsPath) && !req.query.forceGhl;
   
   if (useLocalInventory) {
     console.log('📁 Using local inventory file for updates');
@@ -385,7 +621,7 @@ app.post('/update-inventory', async (req, res) => {
         
         const ghlItem = ghlItems.find(g => g.productId === item.id && g.priceId === item.priceId);
         if (ghlItem) {
-          const oldQty = ghlItem.quantity || 20; // Default quantity if not set
+          const oldQty = ghlItem.quantity || 20;
           const newQty = Math.max(0, oldQty - item.quantity);
           ghlItem.quantity = newQty;
           
@@ -409,6 +645,16 @@ app.post('/update-inventory', async (req, res) => {
       fs.writeFileSync(ghlItemsPath, JSON.stringify(ghlItems, null, 2));
       console.log('💾 Local inventory file updated');
       
+      // Update cached inventory if it exists
+      if (cachedInventory) {
+        for (const item of cart) {
+          const cachedItem = cachedInventory.find(c => c.id === item.id && c.priceId === item.priceId);
+          if (cachedItem) {
+            cachedItem.quantity = Math.max(0, cachedItem.quantity - item.quantity);
+          }
+        }
+      }
+      
       // Send low stock alerts
       for (const lowStockItem of lowStockItems) {
         await sendLowStockAlert(lowStockItem.name, lowStockItem.quantity, lowStockItem.threshold);
@@ -428,16 +674,9 @@ app.post('/update-inventory', async (req, res) => {
     }
   }
   
-  // Fall back to GHL API update
-  let token;
+  // Update GHL inventory directly
   try {
-    token = await getAccessToken();
-  } catch (tokenError) {
-    console.error('❌ Token error:', tokenError.message);
-    return res.status(401).json({ error: 'GHL authentication failed', needsAuth: true });
-  }
-  
-  try {
+    const token = await getValidAccessToken();
     const lowStockItems = [];
     
     for (const item of cart) {
@@ -447,6 +686,8 @@ app.post('/update-inventory', async (req, res) => {
         console.error(`❌ Missing required fields for item: ${item.name}`, { id: item.id, priceId: item.priceId });
         continue;
       }
+      
+      // Get current stock
       const priceResp = await axios.get(`${BASE_URL}/products/${item.id}/prices/${item.priceId}`, {
         headers: { Authorization: `Bearer ${token}`, 'Version': '2021-04-15' }
       });
@@ -455,6 +696,7 @@ app.post('/update-inventory', async (req, res) => {
       const newQty = priceResp.data.availableQuantity - item.quantity;
       console.log(`📊 New GHL stock for ${item.name}: ${newQty} (reduced by ${item.quantity})`);
       
+      // Update stock in GHL
       await axios.put(`${BASE_URL}/products/${item.id}/prices/${item.priceId}`, {
         availableQuantity: newQty
       }, {
@@ -471,6 +713,14 @@ app.post('/update-inventory', async (req, res) => {
         });
       }
       
+      // Update cached inventory if it exists
+      if (cachedInventory) {
+        const cachedItem = cachedInventory.find(c => c.id === item.id && c.priceId === item.priceId);
+        if (cachedItem) {
+          cachedItem.quantity = newQty;
+        }
+      }
+      
       console.log(`📦 Updated GHL ${item.name}: ${priceResp.data.availableQuantity} → ${newQty} units`);
     }
 
@@ -478,6 +728,13 @@ app.post('/update-inventory', async (req, res) => {
     for (const lowStockItem of lowStockItems) {
       await sendLowStockAlert(lowStockItem.name, lowStockItem.quantity, lowStockItem.threshold);
     }
+
+    // Force a sync after successful update to keep everything in sync
+    setTimeout(() => {
+      syncProducts().catch(error => {
+        console.error('Post-update sync failed:', error);
+      });
+    }, 1000);
 
     res.json({ 
       success: true, 
@@ -488,21 +745,24 @@ app.post('/update-inventory', async (req, res) => {
         'GHL inventory updated successfully.'
     });
   } catch (err) {
-    console.error('GHL Update-inventory failed:', err.response?.data || err.message, err.stack);
-    if (err.response?.status === 401) {
+    console.error('GHL Update-inventory failed:', err.response?.data || err.message);
+    
+    // Try to handle token expiry
+    if (err.response?.status === 401 || err.response?.status === 403) {
       try {
-        token = await refreshAccessToken();
-        const lowStockItems = []; // Track items that need alerts
+        console.log('🔄 Token expired, refreshing and retrying...');
+        const newToken = await refreshAccessToken();
+        const lowStockItems = [];
         
         for (const item of cart) {
           const pr = await axios.get(`${BASE_URL}/products/${item.id}/prices/${item.priceId}`, {
-            headers: { Authorization: `Bearer ${token}`, 'Version': '2021-04-15' }
+            headers: { Authorization: `Bearer ${newToken}`, 'Version': '2021-04-15' }
           });
           const newQty = pr.data.availableQuantity - item.quantity;
           await axios.put(`${BASE_URL}/products/${item.id}/prices/${item.priceId}`, {
             availableQuantity: newQty
           }, {
-            headers: { Authorization: `Bearer ${token}`, 'Version': '2021-04-15' }
+            headers: { Authorization: `Bearer ${newToken}`, 'Version': '2021-04-15' }
           });
 
           // Check if stock is low and needs alert
@@ -514,25 +774,45 @@ app.post('/update-inventory', async (req, res) => {
               threshold: LOW_STOCK_THRESHOLD
             });
           }
+          
+          // Update cached inventory
+          if (cachedInventory) {
+            const cachedItem = cachedInventory.find(c => c.id === item.id && c.priceId === item.priceId);
+            if (cachedItem) {
+              cachedItem.quantity = newQty;
+            }
+          }
         }
 
-        // Send low stock alerts for items that need them
+        // Send low stock alerts
         for (const lowStockItem of lowStockItems) {
           await sendLowStockAlert(lowStockItem.name, lowStockItem.quantity, lowStockItem.threshold);
         }
 
+        // Force a sync after successful retry
+        setTimeout(() => {
+          syncProducts().catch(error => {
+            console.error('Post-retry sync failed:', error);
+          });
+        }, 1000);
+
         return res.json({ 
           success: true, 
+          method: 'ghl_retry',
           lowStockAlerts: lowStockItems.length,
           message: lowStockItems.length > 0 ? 
-            `Inventory updated. ${lowStockItems.length} low stock alert(s) sent.` : 
-            'Inventory updated successfully.'
+            `Inventory updated after token refresh. ${lowStockItems.length} low stock alert(s) sent.` : 
+            'Inventory updated successfully after token refresh.'
         });
-      } catch (_) {
-        console.error('Refresh+update failed');
+      } catch (refreshErr) {
+        console.error('❌ Token refresh and retry failed:', refreshErr.response?.data || refreshErr.message);
       }
     }
-    res.status(500).json({ error: err.response?.data || err.message });
+    
+    res.status(500).json({ 
+      error: err.response?.data || err.message,
+      suggestion: 'Consider using local inventory mode or re-authorize GHL access'
+    });
   }
 });
 
@@ -735,6 +1015,75 @@ app.get('/test', (_, res) => res.json({
     hasMongoUri: !!process.env.MONGODB_URI
   }
 }));
+
+// Manual sync endpoints
+app.post('/sync/products', async (req, res) => {
+  try {
+    console.log('🔄 Manual product sync requested');
+    const products = await syncProducts();
+    res.json({
+      success: true,
+      message: `Successfully synchronized ${products.length} products`,
+      products: products.length,
+      lastSync: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Manual sync failed:', error);
+    res.status(500).json({
+      error: 'Sync failed',
+      details: error.message,
+      suggestion: 'Check GHL credentials and network connection'
+    });
+  }
+});
+
+app.get('/sync/status', (req, res) => {
+  const cache = getSyncCache();
+  res.json({
+    lastSync: lastSyncTime?.toISOString() || cache.lastSync,
+    cachedProducts: cachedInventory?.length || cache.products?.length || 0,
+    syncActive: !!syncInterval,
+    syncInterval: '5 minutes',
+    tokenStatus: getTokens() ? 'available' : 'missing',
+    backendBaseUrl: BASE_URL,
+    locationId: LOCATION_ID
+  });
+});
+
+app.post('/sync/start', (req, res) => {
+  try {
+    startProductSync();
+    res.json({
+      success: true,
+      message: 'Product synchronization service started',
+      interval: '5 minutes'
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to start sync service',
+      details: error.message
+    });
+  }
+});
+
+app.post('/sync/stop', (req, res) => {
+  try {
+    if (syncInterval) {
+      clearInterval(syncInterval);
+      syncInterval = null;
+      console.log('🛑 Product synchronization service stopped');
+    }
+    res.json({
+      success: true,
+      message: 'Product synchronization service stopped'
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to stop sync service',
+      details: error.message
+    });
+  }
+});
 
 // Simple status endpoint
 app.get('/status', (_, res) => {
@@ -1115,4 +1464,36 @@ app.put('/inventory/:id', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log(`🟢 Backend listening on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🟢 Backend listening on port ${PORT}`);
+  console.log('🔧 Environment:', process.env.NODE_ENV || 'development');
+  console.log('📍 GHL Location ID:', LOCATION_ID || 'Not configured');
+  
+  // Initialize product synchronization
+  if (CLIENT_ID && CLIENT_SECRET && LOCATION_ID) {
+    console.log('🚀 Starting automatic product synchronization...');
+    startProductSync();
+  } else {
+    console.log('⚠️ GHL credentials missing - sync service disabled');
+    console.log('💡 Configure GHL_CLIENT_ID, GHL_CLIENT_SECRET, and GHL_LOCATION_ID to enable auto-sync');
+  }
+  
+  // Graceful shutdown handling
+  process.on('SIGINT', () => {
+    console.log('\n🛑 Shutting down gracefully...');
+    if (syncInterval) {
+      clearInterval(syncInterval);
+      console.log('✅ Sync service stopped');
+    }
+    process.exit(0);
+  });
+  
+  process.on('SIGTERM', () => {
+    console.log('\n🛑 Received SIGTERM, shutting down...');
+    if (syncInterval) {
+      clearInterval(syncInterval);
+      console.log('✅ Sync service stopped');
+    }
+    process.exit(0);
+  });
+});

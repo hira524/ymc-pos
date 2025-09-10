@@ -1,0 +1,192 @@
+{
+  "lastSync": "2025-09-10T23:56:48.878Z",
+  "products": [
+    {
+      "id": "ghl-product-0",
+      "name": "Slushie 16 oz - Mixed",
+      "price": 0,
+      "quantity": 0,
+      "priceId": "no-price-0",
+      "description": "Product: Slushie 16 oz - Mixed",
+      "image": null,
+      "lastSynced": "2025-09-10T23:56:48.878Z",
+      "source": "ghl"
+    },
+    {
+      "id": "ghl-product-1",
+      "name": "Slushie 16 oz - Berry Blast",
+      "price": 0,
+      "quantity": 0,
+      "priceId": "no-price-1",
+      "description": "Product: Slushie 16 oz - Berry Blast",
+      "image": null,
+      "lastSynced": "2025-09-10T23:56:48.878Z",
+      "source": "ghl"
+    },
+    {
+      "id": "ghl-product-2",
+      "name": "Slushie 16 oz - Coke",
+      "price": 0,
+      "quantity": 0,
+      "priceId": "no-price-2",
+      "description": "Product: Slushie 16 oz - Coke",
+      "image": null,
+      "lastSynced": "2025-09-10T23:56:48.878Z",
+      "source": "ghl"
+    },
+    {
+      "id": "ghl-product-3",
+      "name": "Slushie 12 oz - Mixed",
+      "price": 0,
+      "quantity": 0,
+      "priceId": "no-price-3",
+      "description": "Product: Slushie 12 oz - Mixed",
+      "image": null,
+      "lastSynced": "2025-09-10T23:56:48.878Z",
+      "source": "ghl"
+    },
+    {
+      "id": "ghl-product-4",
+      "name": "Slushie 12 oz - Berry Blast",
+      "price": 0,
+      "quantity": 0,
+      "priceId": "no-price-4",
+      "description": "Product: Slushie 12 oz - Berry Blast",
+      "image": null,
+      "lastSynced": "2025-09-10T23:56:48.878Z",
+      "source": "ghl"
+    },
+    {
+      "id": "ghl-product-5",
+      "name": "Slushie 12 oz - Coke",
+      "price": 0,
+      "quantity": 0,
+      "priceId": "no-price-5",
+      "description": "Product: Slushie 12 oz - Coke",
+      "image": null,
+      "lastSynced": "2025-09-10T23:56:48.878Z",
+      "source": "ghl"
+    },
+    {
+      "id": "ghl-product-6",
+      "name": "250ml Soft Drink Can - Fanta",
+      "price": 0,
+      "quantity": 0,
+      "priceId": "no-price-6",
+      "description": "Product: 250ml Soft Drink Can - Fanta",
+      "image": null,
+      "lastSynced": "2025-09-10T23:56:48.878Z",
+      "source": "ghl"
+    },
+    {
+      "id": "ghl-product-7",
+      "name": "250ml Soft Drink Can - Coke Zero",
+      "price": 0,
+      "quantity": 0,
+      "priceId": "no-price-7",
+      "description": "Product: 250ml Soft Drink Can - Coke Zero",
+      "image": null,
+      "lastSynced": "2025-09-10T23:56:48.878Z",
+      "source": "ghl"
+    },
+    {
+      "id": "ghl-product-8",
+      "name": "250ml Soft Drink Can - Coke",
+      "price": 0,
+      "quantity": 0,
+      "priceId": "no-price-8",
+      "description": "Product: 250ml Soft Drink Can - Coke",
+      "image": null,
+      "lastSynced": "2025-09-10T23:56:48.878Z",
+      "source": "ghl"
+    },
+    {
+      "id": "ghl-product-9",
+      "name": "250ml Soft Drink Can - Sprite",
+      "price": 0,
+      "quantity": 0,
+      "priceId": "no-price-9",
+      "description": "Product: 250ml Soft Drink Can - Sprite",
+      "image": null,
+      "lastSynced": "2025-09-10T23:56:48.878Z",
+      "source": "ghl"
+    },
+    {
+      "id": "ghl-product-10",
+      "name": "250ml Pop Top - Apple",
+      "price": 0,
+      "quantity": 0,
+      "priceId": "no-price-10",
+      "description": "Product: 250ml Pop Top - Apple",
+      "image": null,
+      "lastSynced": "2025-09-10T23:56:48.878Z",
+      "source": "ghl"
+    },
+    {
+      "id": "ghl-product-11",
+      "name": "250ml Pop Top - Apple & Blackcurrant",
+      "price": 0,
+      "quantity": 0,
+      "priceId": "no-price-11",
+      "description": "Product: 250ml Pop Top - Apple & Blackcurrant",
+      "image": null,
+      "lastSynced": "2025-09-10T23:56:48.878Z",
+      "source": "ghl"
+    },
+    {
+      "id": "ghl-product-12",
+      "name": "250 ml Bottled Water",
+      "price": 0,
+      "quantity": 0,
+      "priceId": "no-price-12",
+      "description": "Product: 250 ml Bottled Water",
+      "image": null,
+      "lastSynced": "2025-09-10T23:56:48.878Z",
+      "source": "ghl"
+    },
+    {
+      "id": "ghl-product-13",
+      "name": "South Ripley",
+      "price": 0,
+      "quantity": 0,
+      "priceId": "no-price-13",
+      "description": "<p style=\"margin:0px;color:#10182899; margin: 0px;color: #10182899;\"><span style=\"font-size: 18px; font-family: Roboto, sans-serif; color: rgba(0,0,0,1) !important\">This beautiful home in&nbsp;South Ripley&nbsp;offers the perfect blend of convenience, comfort, and style, designed for easy living and enjoyment. With a spacious open-plan layout, it’s an ideal space for those seeking comfort and versatility.</span></p>",
+      "image": null,
+      "lastSynced": "2025-09-10T23:56:48.878Z",
+      "source": "ghl"
+    },
+    {
+      "id": "ghl-product-14",
+      "name": "The Heights Estate in Pimpama",
+      "price": 0,
+      "quantity": 0,
+      "priceId": "no-price-14",
+      "description": "<p style=\"margin:0px;color:#10182899; margin: 0px;color: #10182899;\"><span style=\"font-size: 18px; font-family: Roboto, sans-serif; color: rgb(0, 0, 0)\">Nestled on the northern Gold Coast,&nbsp;The Heights Estate in Pimpama&nbsp;is a premier, master-planned community offering the perfect blend of tranquillity and convenience. Just 40 minutes from the stunning beaches of Surfers Paradise, this vibrant location is surrounded by top- sports and recreation facilities, medical services, and shopping hubs—all just minutes from your door. Plus, Coomera Train Station just a stone’s throw away!</span></p>",
+      "image": null,
+      "lastSynced": "2025-09-10T23:56:48.878Z",
+      "source": "ghl"
+    },
+    {
+      "id": "ghl-product-15",
+      "name": "YM Community NDIS Housing",
+      "price": 0,
+      "quantity": 0,
+      "priceId": "no-price-15",
+      "description": "<p style=\"margin:0px;color:#10182899; margin: 0px;color: #10182899;\"><span style=\"font-size: 18px; font-family: Roboto, sans-serif; color: rgb(0, 0, 0)\">You Me and the Community (YMC) is proud to open the doors to our SIL home in Greenbank 4124 and expand our services to include SIL, MTA, ILO, STA and SDA support.&nbsp;</span><br><span style=\"font-size: 18px; font-family: Roboto, sans-serif; color: rgb(0, 0, 0)\">This wonderful contemporary home is situated in a beautiful neighbourhood that is community orientated and is available now. ﻿The home is only 12 months old.</span></p>",
+      "image": null,
+      "lastSynced": "2025-09-10T23:56:48.878Z",
+      "source": "ghl"
+    },
+    {
+      "id": "ghl-product-16",
+      "name": "Board Room Booking",
+      "price": 0,
+      "quantity": 0,
+      "priceId": "no-price-16",
+      "description": "GHL Product: Board Room Booking",
+      "image": null,
+      "lastSynced": "2025-09-10T23:56:48.878Z",
+      "source": "ghl"
+    }
+  ]
+}

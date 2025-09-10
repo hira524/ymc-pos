@@ -1,113 +1,155 @@
 [
   {
-    "name": "250 ml Bottled Water",
-    "productId": "68844dba07a263bf2429b635",
-    "priceId": "68844dbb862c0c94d28f6e3a",
-    "price": 1,
-    "quantity": 8
-  },
-  {
-    "name": "250ml Pop Top - Apple & Blackcurrant",
-    "productId": "68844dbd4aff8336ff35d2d1",
-    "priceId": "68844dbd360ca1259096f21b",
-    "price": 2.5,
-    "quantity": 17
-  },
-  {
-    "name": "250ml Pop Top - Apple",
-    "productId": "68844dc007a263355829b640",
-    "priceId": "68844dc0862c0cb2e88f6e3e",
-    "price": 2.5,
-    "quantity": 13
-  },
-  {
-    "name": "250ml Soft Drink Can - Sprite",
-    "productId": "68844dc3862c0ce4648f6e41",
-    "priceId": "68844dc34aff834d1a35d2d7",
-    "price": 2,
-    "quantity": 20
-  },
-  {
-    "name": "250ml Soft Drink Can - Coke",
-    "productId": "68844dc6360ca1ce0796f21f",
-    "priceId": "68844dc64aff83fcfe35d2da",
-    "price": 2,
-    "quantity": 18
-  },
-  {
-    "name": "250ml Soft Drink Can - Coke Zero",
-    "productId": "68844dc94aff835c6935d2dd",
-    "priceId": "68844dc9360ca1e24696f225",
-    "price": 2,
-    "quantity": 13
-  },
-  {
-    "name": "250ml Soft Drink Can - Fanta",
-    "productId": "68844dcc4aff83fb0e35d2df",
-    "priceId": "68844dcc360ca13e2d96f229",
-    "price": 2,
-    "quantity": 20
-  },
-  {
-    "name": "Slushie 12 oz - Coke",
-    "productId": "68844dcf07a2636c3029b64a",
-    "priceId": "68844dcf4aff8310d735d2e5",
-    "price": 2.5,
-    "quantity": 17
-  },
-  {
-    "name": "Slushie 12 oz - Berry Blast",
-    "productId": "68844dd207a263239c29b64f",
-    "priceId": "68844dd2862c0c215a8f6e4f",
-    "price": 2.5,
-    "quantity": 17
-  },
-  {
-    "name": "Slushie 12 oz - Mixed",
-    "productId": "68844dd407a2631f5129b651",
-    "priceId": "68844dd5360ca11afe96f230",
-    "price": 2.5,
-    "quantity": 18
-  },
-  {
-    "name": "Slushie 16 oz - Coke",
-    "productId": "68844dd7360ca1a3a896f233",
-    "priceId": "68844dd8862c0cd62e8f6e56",
-    "price": 4.5,
-    "quantity": 16
+    "name": "Slushie 16 oz - Mixed",
+    "productId": "ghl-product-0",
+    "priceId": "no-price-0",
+    "price": 0,
+    "quantity": 0,
+    "description": "Product: Slushie 16 oz - Mixed",
+    "lastSynced": "2025-09-10T23:56:48.878Z"
   },
   {
     "name": "Slushie 16 oz - Berry Blast",
-    "productId": "68844dda862c0c80618f6e59",
-    "priceId": "68844dda360ca15ad496f235",
-    "price": 4.5,
-    "quantity": 9
+    "productId": "ghl-product-1",
+    "priceId": "no-price-1",
+    "price": 0,
+    "quantity": 0,
+    "description": "Product: Slushie 16 oz - Berry Blast",
+    "lastSynced": "2025-09-10T23:56:48.878Z"
   },
   {
-    "name": "Slushie 16 oz - Mixed",
-    "productId": "68844ddd862c0c39d68f6e5f",
-    "priceId": "68844ddd360ca166ea96f238",
-    "price": 4.5,
-    "quantity": 19
+    "name": "Slushie 16 oz - Coke",
+    "productId": "ghl-product-2",
+    "priceId": "no-price-2",
+    "price": 0,
+    "quantity": 0,
+    "description": "Product: Slushie 16 oz - Coke",
+    "lastSynced": "2025-09-10T23:56:48.878Z"
   },
   {
-    "name": "test",
-    "productId": "manual-1756947735437-3qu1sh",
-    "priceId": "price-1756947735437-3qu1sh",
-    "price": 12,
-    "quantity": 12,
-    "description": "test",
-    "isManual": true,
-    "createdAt": "2025-09-04T01:02:15.437Z"
+    "name": "Slushie 12 oz - Mixed",
+    "productId": "ghl-product-3",
+    "priceId": "no-price-3",
+    "price": 0,
+    "quantity": 0,
+    "description": "Product: Slushie 12 oz - Mixed",
+    "lastSynced": "2025-09-10T23:56:48.878Z"
   },
   {
-    "name": "test2",
-    "productId": "manual-1756947982043-124q3c",
-    "priceId": "price-1756947982043-124q3c",
-    "price": 22,
-    "quantity": 23,
-    "description": "w",
-    "isManual": true,
-    "createdAt": "2025-09-04T01:06:22.043Z"
+    "name": "Slushie 12 oz - Berry Blast",
+    "productId": "ghl-product-4",
+    "priceId": "no-price-4",
+    "price": 0,
+    "quantity": 0,
+    "description": "Product: Slushie 12 oz - Berry Blast",
+    "lastSynced": "2025-09-10T23:56:48.878Z"
+  },
+  {
+    "name": "Slushie 12 oz - Coke",
+    "productId": "ghl-product-5",
+    "priceId": "no-price-5",
+    "price": 0,
+    "quantity": 0,
+    "description": "Product: Slushie 12 oz - Coke",
+    "lastSynced": "2025-09-10T23:56:48.878Z"
+  },
+  {
+    "name": "250ml Soft Drink Can - Fanta",
+    "productId": "ghl-product-6",
+    "priceId": "no-price-6",
+    "price": 0,
+    "quantity": 0,
+    "description": "Product: 250ml Soft Drink Can - Fanta",
+    "lastSynced": "2025-09-10T23:56:48.878Z"
+  },
+  {
+    "name": "250ml Soft Drink Can - Coke Zero",
+    "productId": "ghl-product-7",
+    "priceId": "no-price-7",
+    "price": 0,
+    "quantity": 0,
+    "description": "Product: 250ml Soft Drink Can - Coke Zero",
+    "lastSynced": "2025-09-10T23:56:48.878Z"
+  },
+  {
+    "name": "250ml Soft Drink Can - Coke",
+    "productId": "ghl-product-8",
+    "priceId": "no-price-8",
+    "price": 0,
+    "quantity": 0,
+    "description": "Product: 250ml Soft Drink Can - Coke",
+    "lastSynced": "2025-09-10T23:56:48.878Z"
+  },
+  {
+    "name": "250ml Soft Drink Can - Sprite",
+    "productId": "ghl-product-9",
+    "priceId": "no-price-9",
+    "price": 0,
+    "quantity": 0,
+    "description": "Product: 250ml Soft Drink Can - Sprite",
+    "lastSynced": "2025-09-10T23:56:48.878Z"
+  },
+  {
+    "name": "250ml Pop Top - Apple",
+    "productId": "ghl-product-10",
+    "priceId": "no-price-10",
+    "price": 0,
+    "quantity": 0,
+    "description": "Product: 250ml Pop Top - Apple",
+    "lastSynced": "2025-09-10T23:56:48.878Z"
+  },
+  {
+    "name": "250ml Pop Top - Apple & Blackcurrant",
+    "productId": "ghl-product-11",
+    "priceId": "no-price-11",
+    "price": 0,
+    "quantity": 0,
+    "description": "Product: 250ml Pop Top - Apple & Blackcurrant",
+    "lastSynced": "2025-09-10T23:56:48.878Z"
+  },
+  {
+    "name": "250 ml Bottled Water",
+    "productId": "ghl-product-12",
+    "priceId": "no-price-12",
+    "price": 0,
+    "quantity": 0,
+    "description": "Product: 250 ml Bottled Water",
+    "lastSynced": "2025-09-10T23:56:48.878Z"
+  },
+  {
+    "name": "South Ripley",
+    "productId": "ghl-product-13",
+    "priceId": "no-price-13",
+    "price": 0,
+    "quantity": 0,
+    "description": "<p style=\"margin:0px;color:#10182899; margin: 0px;color: #10182899;\"><span style=\"font-size: 18px; font-family: Roboto, sans-serif; color: rgba(0,0,0,1) !important\">This beautiful home in&nbsp;South Ripley&nbsp;offers the perfect blend of convenience, comfort, and style, designed for easy living and enjoyment. With a spacious open-plan layout, it’s an ideal space for those seeking comfort and versatility.</span></p>",
+    "lastSynced": "2025-09-10T23:56:48.878Z"
+  },
+  {
+    "name": "The Heights Estate in Pimpama",
+    "productId": "ghl-product-14",
+    "priceId": "no-price-14",
+    "price": 0,
+    "quantity": 0,
+    "description": "<p style=\"margin:0px;color:#10182899; margin: 0px;color: #10182899;\"><span style=\"font-size: 18px; font-family: Roboto, sans-serif; color: rgb(0, 0, 0)\">Nestled on the northern Gold Coast,&nbsp;The Heights Estate in Pimpama&nbsp;is a premier, master-planned community offering the perfect blend of tranquillity and convenience. Just 40 minutes from the stunning beaches of Surfers Paradise, this vibrant location is surrounded by top- sports and recreation facilities, medical services, and shopping hubs—all just minutes from your door. Plus, Coomera Train Station just a stone’s throw away!</span></p>",
+    "lastSynced": "2025-09-10T23:56:48.878Z"
+  },
+  {
+    "name": "YM Community NDIS Housing",
+    "productId": "ghl-product-15",
+    "priceId": "no-price-15",
+    "price": 0,
+    "quantity": 0,
+    "description": "<p style=\"margin:0px;color:#10182899; margin: 0px;color: #10182899;\"><span style=\"font-size: 18px; font-family: Roboto, sans-serif; color: rgb(0, 0, 0)\">You Me and the Community (YMC) is proud to open the doors to our SIL home in Greenbank 4124 and expand our services to include SIL, MTA, ILO, STA and SDA support.&nbsp;</span><br><span style=\"font-size: 18px; font-family: Roboto, sans-serif; color: rgb(0, 0, 0)\">This wonderful contemporary home is situated in a beautiful neighbourhood that is community orientated and is available now. ﻿The home is only 12 months old.</span></p>",
+    "lastSynced": "2025-09-10T23:56:48.878Z"
+  },
+  {
+    "name": "Board Room Booking",
+    "productId": "ghl-product-16",
+    "priceId": "no-price-16",
+    "price": 0,
+    "quantity": 0,
+    "description": "GHL Product: Board Room Booking",
+    "lastSynced": "2025-09-10T23:56:48.878Z"
   }
 ]

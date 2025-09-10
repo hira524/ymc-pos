@@ -531,6 +531,14 @@ function App() {
   const [inventoryAction, setInventoryAction] = useState(''); // 'add', 'edit', 'view'
   const [selectedItem, setSelectedItem] = useState(null);
 
+  // Product sync state
+  const [syncStatus, setSyncStatus] = useState({
+    lastSync: null,
+    syncing: false,
+    error: null
+  });
+  const [showSyncControls, setShowSyncControls] = useState(false);
+
   // Other Product Calculator States
   const [showOtherProductCalculator, setShowOtherProductCalculator] = useState(false);
   const [otherProductAmount, setOtherProductAmount] = useState('');
@@ -689,6 +697,9 @@ function App() {
         console.error('Inventory fetch error:', e.response?.data || e.message);
         showAlert(`**Inventory Loading Failed**\n\nUnable to load product catalog from server.\n\n**Error Details:**\n${e.response?.data?.error || e.message}\n\n**Troubleshooting:**\n• Check server connection\n• Verify backend is running\n• Contact system administrator\n\n*POS system may not function properly without inventory.*`, 'error');
       });
+
+    // 3) Check sync status
+    checkSyncStatus();
   }, [BACKEND_URL]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keyboard support for standalone calculator
@@ -1080,6 +1091,71 @@ function App() {
     setShowInventoryManager(false);
     setInventoryAction('');
     setSelectedItem(null);
+  };
+
+  // Product synchronization functions
+  const refreshInventory = async () => {
+    setSyncStatus(prev => ({ ...prev, syncing: true, error: null }));
+    try {
+      console.log('🔄 Refreshing inventory...');
+      const response = await axios.get(`${BACKEND_URL}/inventory?refresh=true`);
+      setInventory(response.data);
+      setSyncStatus({
+        lastSync: new Date().toISOString(),
+        syncing: false,
+        error: null
+      });
+      showAlert('**Inventory Refreshed**\n\nProduct data has been synchronized with GHL.', 'success');
+    } catch (error) {
+      console.error('Inventory refresh failed:', error);
+      setSyncStatus(prev => ({ 
+        ...prev, 
+        syncing: false, 
+        error: error.response?.data?.error || error.message 
+      }));
+      showAlert(`**Sync Failed**\n\nCould not refresh inventory from GHL.\n\n**Error:** ${error.response?.data?.error || error.message}`, 'error');
+    }
+  };
+
+  const manualSync = async () => {
+    setSyncStatus(prev => ({ ...prev, syncing: true, error: null }));
+    try {
+      console.log('🔄 Starting manual sync...');
+      const response = await axios.post(`${BACKEND_URL}/sync/products`);
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Small delay for UX
+      
+      // Refresh local inventory
+      const inventoryResponse = await axios.get(`${BACKEND_URL}/inventory`);
+      setInventory(inventoryResponse.data);
+      
+      setSyncStatus({
+        lastSync: new Date().toISOString(),
+        syncing: false,
+        error: null
+      });
+      showAlert(`**Sync Complete**\n\n${response.data.products} products synchronized successfully.`, 'success');
+    } catch (error) {
+      console.error('Manual sync failed:', error);
+      setSyncStatus(prev => ({ 
+        ...prev, 
+        syncing: false, 
+        error: error.response?.data?.error || error.message 
+      }));
+      showAlert(`**Manual Sync Failed**\n\n${error.response?.data?.details || error.message}`, 'error');
+    }
+  };
+
+  const checkSyncStatus = async () => {
+    try {
+      const response = await axios.get(`${BACKEND_URL}/sync/status`);
+      setSyncStatus({
+        lastSync: response.data.lastSync,
+        syncing: false,
+        error: null
+      });
+    } catch (error) {
+      console.error('Failed to check sync status:', error);
+    }
   };
 
   // Other Product Calculator Functions
@@ -1481,13 +1557,125 @@ function App() {
           {/* Search Section */}
           <section className="search-section animate-fade-in">
             <h2 className="search-title">Search Products</h2>
-            <input
-              type="search"
-              placeholder="Search items by name..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="search-input"
-            />
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <input
+                type="search"
+                placeholder="Search items by name..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="search-input"
+                style={{ flex: 1 }}
+              />
+              <button
+                onClick={() => setShowSyncControls(!showSyncControls)}
+                className="sync-toggle-btn"
+                style={{
+                  background: showSyncControls ? '#4CAF50' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '12px 16px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.2s ease',
+                  minWidth: '120px',
+                  justifyContent: 'center'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.transform = 'translateY(-1px)';
+                  e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.transform = 'translateY(0)';
+                  e.target.style.boxShadow = 'none';
+                }}
+              >
+                🔄 Sync
+              </button>
+            </div>
+            
+            {/* Sync Controls Panel */}
+            {showSyncControls && (
+              <div style={{
+                marginTop: '12px',
+                padding: '16px',
+                backgroundColor: 'var(--card-bg)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '8px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>Product Synchronization</h3>
+                  <div style={{
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    backgroundColor: syncStatus.error ? '#ff4444' : syncStatus.syncing ? '#ffa726' : '#4CAF50',
+                    color: 'white'
+                  }}>
+                    {syncStatus.syncing ? '🔄 Syncing...' : syncStatus.error ? '❌ Error' : '✅ Ready'}
+                  </div>
+                </div>
+                
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                  <button
+                    onClick={refreshInventory}
+                    disabled={syncStatus.syncing}
+                    style={{
+                      background: syncStatus.syncing ? '#ccc' : 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '8px 12px',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: syncStatus.syncing ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.2s ease',
+                      opacity: syncStatus.syncing ? 0.6 : 1
+                    }}
+                  >
+                    {syncStatus.syncing ? 'Refreshing...' : '🔄 Refresh'}
+                  </button>
+                  
+                  <button
+                    onClick={manualSync}
+                    disabled={syncStatus.syncing}
+                    style={{
+                      background: syncStatus.syncing ? '#ccc' : 'linear-gradient(135deg, #2196F3 0%, #1976D2 100%)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '8px 12px',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: syncStatus.syncing ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.2s ease',
+                      opacity: syncStatus.syncing ? 0.6 : 1
+                    }}
+                  >
+                    {syncStatus.syncing ? 'Syncing...' : '⚡ Full Sync'}
+                  </button>
+                </div>
+                
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                  {syncStatus.lastSync ? (
+                    <>Last sync: {new Date(syncStatus.lastSync).toLocaleString()}</>
+                  ) : (
+                    'No sync data available'
+                  )}
+                  {syncStatus.error && (
+                    <div style={{ color: '#ff4444', marginTop: '4px' }}>
+                      Error: {syncStatus.error}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </section>
 
           {/* Products Section */}
