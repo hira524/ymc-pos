@@ -590,8 +590,17 @@ app.get('/tokens/status', (req, res) => {
   }
 });
 
-// MongoDB & Payment Schema
-mongoose.connect(process.env.MONGODB_URI);
+// MongoDB Connection & Schemas
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => {
+    console.log('🟢 Connected to MongoDB');
+    // Initialize default products on startup
+    initializeInventory();
+  })
+  .catch(err => {
+    console.error('❌ MongoDB connection failed:', err);
+  });
+
 const Payment = mongoose.model('Payment', new mongoose.Schema({
   date: { type: Date, default: Date.now },
   items: Array,
@@ -599,79 +608,107 @@ const Payment = mongoose.model('Payment', new mongoose.Schema({
   method: String
 }));
 
+// Import Product Service
+const ProductService = require('./services/ProductService');
+
+// Initialize MongoDB inventory
+async function initializeInventory() {
+  try {
+    console.log('🔄 Initializing MongoDB inventory system...');
+    await ProductService.initializeDefaultProducts();
+    console.log('✅ MongoDB inventory system initialized');
+  } catch (error) {
+    console.error('❌ Failed to initialize inventory:', error);
+  }
+}
+
 // /inventory
+// /inventory - MongoDB-based endpoint
 app.get('/inventory', async (req, res) => {
-  console.log('🔍 Inventory request received');
+  console.log('🔍 MongoDB Inventory request received');
   
   try {
-    // Check if we should force a refresh
+    const useGHL = req.query.source === 'ghl';
     const forceRefresh = req.query.refresh === 'true';
-    const maxCacheAge = 5 * 60 * 1000; // 5 minutes
-    const needsRefresh = forceRefresh || !lastSyncTime || 
-                        (Date.now() - lastSyncTime.getTime()) > maxCacheAge;
     
-    if (needsRefresh || !cachedInventory) {
-      console.log('� Refreshing inventory from GHL...');
+    if (useGHL) {
+      // Fallback to GHL sync if specifically requested
+      console.log('🔄 GHL inventory requested, attempting sync...');
       try {
-        const products = await syncProducts();
-        return res.json(products);
-      } catch (syncError) {
-        console.error('❌ Live sync failed, trying cached data:', syncError);
+        const maxCacheAge = 5 * 60 * 1000; // 5 minutes
+        const needsRefresh = forceRefresh || !lastSyncTime || 
+                            (Date.now() - lastSyncTime.getTime()) > maxCacheAge;
         
-        // Try to return cached data
+        if (needsRefresh || !cachedInventory) {
+          const products = await syncProducts();
+          return res.json(products);
+        }
+        
         if (cachedInventory) {
-          console.log('� Returning cached inventory (live sync failed)');
+          console.log('📦 Returning cached GHL inventory');
           return res.json(cachedInventory);
         }
-        
-        // Try local ghl-items.json file
-        const ghlItemsPath = path.join(__dirname, 'ghl-items.json');
-        if (fs.existsSync(ghlItemsPath)) {
-          console.log('📋 Using local ghl-items.json file (fallback)');
-          const localItems = JSON.parse(fs.readFileSync(ghlItemsPath, 'utf8'));
-          
-          const inventory = localItems.map((item, index) => ({
-            id: item.productId || item.id || `product-${index}`,
-            name: item.name || `Product ${index + 1}`,
-            price: parseFloat(item.price) || 0,
-            quantity: item.quantity || 20,
-            priceId: item.priceId || `price-${index}`,
-            description: item.description || `Product: ${item.name || 'Unnamed'}`,
-            image: item.image || null,
-            source: 'local'
-          }));
-          
-          cachedInventory = inventory; // Cache for next time
-          return res.json(inventory);
-        }
-        
-        // Return demo inventory as last resort
-        console.log('🔄 Falling back to demo inventory');
-        return res.json(DEMO_INVENTORY);
+      } catch (syncError) {
+        console.error('❌ GHL sync failed, falling back to MongoDB:', syncError);
       }
     }
+
+    // Primary: Use MongoDB inventory
+    console.log('� Fetching inventory from MongoDB...');
+    const products = await ProductService.getAllProducts();
     
-    // Return cached inventory
+    // Convert to expected format
+    const inventory = products.map(product => ({
+      id: product.productId,
+      name: product.name,
+      price: product.price,
+      quantity: product.quantity,
+      priceId: product.priceId,
+      description: product.description,
+      image: product.image,
+      source: product.source,
+      productType: product.productType,
+      availableInStore: product.availableInStore,
+      category: product.category,
+      sku: product.sku,
+      lastSynced: product.lastSynced,
+      _id: product._id
+    }));
+
+    console.log(`✅ Retrieved ${inventory.length} products from MongoDB`);
+    res.json(inventory);
+
+  } catch (error) {
+    console.error('❌ MongoDB inventory fetch failed:', error);
+    
+    // Ultimate fallback: try cached data, then file-based, then demo
     if (cachedInventory) {
-      console.log('📦 Returning cached inventory (fresh)');
+      console.log('📦 Emergency fallback to cached inventory');
       return res.json(cachedInventory);
     }
     
-    // This shouldn't happen, but just in case
-    console.log('⚠️ No inventory available, forcing sync...');
-    const products = await syncProducts();
-    return res.json(products);
-    
-  } catch (err) {
-    console.error('❌ Inventory fetch failed:', err);
-    
-    // Return any available fallback data
-    if (cachedInventory) {
-      console.log('� Returning cached inventory (error fallback)');
-      return res.json(cachedInventory);
+    // Try local ghl-items.json file
+    const ghlItemsPath = path.join(__dirname, 'ghl-items.json');
+    if (fs.existsSync(ghlItemsPath)) {
+      console.log('📋 Emergency fallback to local file');
+      const localItems = JSON.parse(fs.readFileSync(ghlItemsPath, 'utf8'));
+      
+      const inventory = localItems.map((item, index) => ({
+        id: item.productId || item.id || `product-${index}`,
+        name: item.name || `Product ${index + 1}`,
+        price: parseFloat(item.price) || 0,
+        quantity: item.quantity || 20,
+        priceId: item.priceId || `price-${index}`,
+        description: item.description || `Product: ${item.name || 'Unnamed'}`,
+        image: item.image || null,
+        source: 'local'
+      }));
+      
+      return res.json(inventory);
     }
     
-    console.log('🔄 Falling back to demo inventory (complete failure)');
+    // Last resort: demo inventory
+    console.log('🔄 Ultimate fallback to demo inventory');
     res.json(DEMO_INVENTORY);
   }
 });
@@ -705,15 +742,69 @@ app.post('/test-inventory-update', async (req, res) => {
   }
 });
 
-// /update-inventory
+// /update-inventory - MongoDB-first endpoint
 app.post('/update-inventory', async (req, res) => {
   const { cart } = req.body;
   console.log('📦 Inventory update request received');
   console.log('🛒 Cart data:', JSON.stringify(cart, null, 2));
   
+  // Try MongoDB first
+  const useMongoDB = req.query.source !== 'ghl' && req.query.source !== 'local';
+  
+  if (useMongoDB) {
+    console.log('📦 Using MongoDB for inventory updates');
+    try {
+      // Process sale using MongoDB
+      const updates = await ProductService.processSale(cart);
+      const lowStockItems = [];
+      const LOW_STOCK_THRESHOLD = 5;
+      
+      // Check for low stock items
+      for (const update of updates) {
+        if (update.newQuantity <= LOW_STOCK_THRESHOLD && update.newQuantity > 0) {
+          lowStockItems.push({
+            name: update.product.name,
+            quantity: update.newQuantity,
+            threshold: LOW_STOCK_THRESHOLD
+          });
+        }
+        
+        console.log(`📦 Updated ${update.product.name}: ${update.oldQuantity} → ${update.newQuantity} units (sold: ${update.soldQuantity})`);
+      }
+      
+      // Send low stock alerts
+      for (const lowStockItem of lowStockItems) {
+        await sendLowStockAlert(lowStockItem.name, lowStockItem.quantity, lowStockItem.threshold);
+      }
+      
+      console.log(`✅ MongoDB inventory updated successfully. ${updates.length} products processed.`);
+      
+      return res.json({ 
+        success: true, 
+        method: 'mongodb',
+        updatedProducts: updates.length,
+        lowStockAlerts: lowStockItems.length,
+        updates: updates.map(u => ({
+          name: u.product.name,
+          oldQuantity: u.oldQuantity,
+          newQuantity: u.newQuantity,
+          soldQuantity: u.soldQuantity
+        })),
+        message: lowStockItems.length > 0 ? 
+          `MongoDB inventory updated. ${lowStockItems.length} low stock alert(s) sent.` : 
+          'MongoDB inventory updated successfully.'
+      });
+      
+    } catch (mongoError) {
+      console.error('❌ MongoDB inventory update failed:', mongoError.message);
+      console.log('🔄 Falling back to file-based inventory...');
+      // Continue to file-based fallback
+    }
+  }
+  
   // Check if we're using local inventory file (for offline mode)
   const ghlItemsPath = path.join(__dirname, 'ghl-items.json');
-  const useLocalInventory = fs.existsSync(ghlItemsPath) && !req.query.forceGhl;
+  const useLocalInventory = fs.existsSync(ghlItemsPath) && (req.query.source === 'local' || !req.query.forceGhl);
   
   if (useLocalInventory) {
     console.log('📁 Using local inventory file for updates');
@@ -922,6 +1013,64 @@ app.post('/update-inventory', async (req, res) => {
   }
 });
 
+// MongoDB-based update-inventory endpoint
+app.post('/update-inventory-mongodb', async (req, res) => {
+  const { cart } = req.body;
+  console.log('📦 MongoDB Inventory update request received');
+  console.log('🛒 Cart data:', JSON.stringify(cart, null, 2));
+  
+  try {
+    // Process sale using MongoDB
+    const updates = await ProductService.processSale(cart);
+    const lowStockItems = [];
+    const LOW_STOCK_THRESHOLD = 5; // Configurable threshold
+    
+    // Check for low stock items
+    for (const update of updates) {
+      if (update.newQuantity <= LOW_STOCK_THRESHOLD && update.newQuantity > 0) {
+        lowStockItems.push({
+          name: update.product.name,
+          quantity: update.newQuantity,
+          threshold: LOW_STOCK_THRESHOLD
+        });
+      }
+      
+      console.log(`📦 Updated ${update.product.name}: ${update.oldQuantity} → ${update.newQuantity} units (sold: ${update.soldQuantity})`);
+    }
+    
+    // Send low stock alerts
+    for (const lowStockItem of lowStockItems) {
+      await sendLowStockAlert(lowStockItem.name, lowStockItem.quantity, lowStockItem.threshold);
+    }
+    
+    console.log(`✅ MongoDB inventory updated successfully. ${updates.length} products processed.`);
+    
+    res.json({ 
+      success: true, 
+      method: 'mongodb',
+      updatedProducts: updates.length,
+      lowStockAlerts: lowStockItems.length,
+      updates: updates.map(u => ({
+        name: u.product.name,
+        oldQuantity: u.oldQuantity,
+        newQuantity: u.newQuantity,
+        soldQuantity: u.soldQuantity
+      })),
+      message: lowStockItems.length > 0 ? 
+        `MongoDB inventory updated. ${lowStockItems.length} low stock alert(s) sent.` : 
+        'MongoDB inventory updated successfully.'
+    });
+    
+  } catch (error) {
+    console.error('❌ MongoDB inventory update failed:', error.message);
+    res.status(400).json({ 
+      error: error.message,
+      method: 'mongodb',
+      suggestion: 'Check product availability and try again'
+    });
+  }
+});
+
 // Stripe Terminal
 app.post('/connection_token', async (req, res) => {
   console.log('🔑 Connection token request received');
@@ -1121,6 +1270,458 @@ app.get('/test', (_, res) => res.json({
     hasMongoUri: !!process.env.MONGODB_URI
   }
 }));
+
+// MongoDB-based Inventory Management Endpoints
+
+// Get all products from MongoDB
+app.get('/mongodb/inventory', async (req, res) => {
+  try {
+    console.log('🔍 MongoDB Inventory request received');
+    console.log('📦 Fetching inventory from MongoDB...');
+    
+    const products = await ProductService.getAllProducts();
+    
+    console.log(`✅ Retrieved ${products.length} products from MongoDB`);
+    res.json(products);
+  } catch (error) {
+    console.error('❌ Error fetching MongoDB inventory:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch inventory from MongoDB',
+      details: error.message 
+    });
+  }
+});
+
+// Search products - must come before /:id route
+app.get('/mongodb/inventory/search/:query', async (req, res) => {
+  try {
+    const { query } = req.params;
+    console.log(`🔍 MongoDB: Searching products for: ${query}`);
+    
+    const products = await ProductService.searchProducts(query);
+    
+    const results = products.map(product => ({
+      id: product.productId,
+      name: product.name,
+      price: product.price,
+      quantity: product.quantity,
+      priceId: product.priceId,
+      description: product.description,
+      category: product.category,
+      _id: product._id
+    }));
+    
+    res.json({ 
+      success: true,
+      query,
+      results,
+      count: results.length
+    });
+    
+  } catch (error) {
+    console.error('MongoDB search error:', error);
+    res.status(500).json({ error: 'Failed to search products in MongoDB' });
+  }
+});
+
+// Get products by category - must come before /:id route
+app.get('/mongodb/inventory/category/:category', async (req, res) => {
+  try {
+    const { category } = req.params;
+    console.log(`🔍 MongoDB: Getting products for category: ${category}`);
+    
+    const products = await ProductService.getProductsByCategory(category);
+    
+    const results = products.map(product => ({
+      id: product.productId,
+      name: product.name,
+      price: product.price,
+      quantity: product.quantity,
+      priceId: product.priceId,
+      description: product.description,
+      category: product.category,
+      _id: product._id
+    }));
+    
+    res.json({ 
+      success: true,
+      category,
+      results,
+      count: results.length
+    });
+    
+  } catch (error) {
+    console.error('MongoDB category search error:', error);
+    res.status(500).json({ error: 'Failed to get products by category from MongoDB' });
+  }
+});
+
+// Get low stock products - must come before /:id route
+app.get('/mongodb/inventory/low-stock', async (req, res) => {
+  try {
+    const threshold = 5; // Default threshold
+    console.log(`🔍 MongoDB: Getting low stock products (threshold: ${threshold})`);
+    
+    const products = await ProductService.getLowStockProducts(threshold);
+    
+    const results = products.map(product => ({
+      id: product.productId,
+      name: product.name,
+      price: product.price,
+      quantity: product.quantity,
+      priceId: product.priceId,
+      description: product.description,
+      category: product.category,
+      _id: product._id
+    }));
+    
+    res.json({ 
+      success: true,
+      threshold,
+      results,
+      count: results.length
+    });
+    
+  } catch (error) {
+    console.error('MongoDB low stock error:', error);
+    res.status(500).json({ error: 'Failed to get low stock products from MongoDB' });
+  }
+});
+
+// Get low stock products with custom threshold - must come before /:id route
+app.get('/mongodb/inventory/low-stock/:threshold', async (req, res) => {
+  try {
+    const threshold = parseInt(req.params.threshold) || 5;
+    console.log(`🔍 MongoDB: Getting low stock products (threshold: ${threshold})`);
+    
+    const products = await ProductService.getLowStockProducts(threshold);
+    
+    const results = products.map(product => ({
+      id: product.productId,
+      name: product.name,
+      price: product.price,
+      quantity: product.quantity,
+      priceId: product.priceId,
+      description: product.description,
+      category: product.category,
+      _id: product._id
+    }));
+    
+    res.json({ 
+      success: true,
+      threshold,
+      results,
+      count: results.length
+    });
+    
+  } catch (error) {
+    console.error('MongoDB low stock error:', error);
+    res.status(500).json({ error: 'Failed to get low stock products from MongoDB' });
+  }
+});
+
+// Add new product - specific route before /:id
+app.post('/mongodb/inventory/add-product', async (req, res) => {
+  try {
+    const { name, price, quantity, description, category, productType } = req.body;
+    
+    if (!name || typeof price !== 'number' || typeof quantity !== 'number') {
+      return res.status(400).json({ 
+        error: 'Missing required fields. Name, price, and quantity are required.' 
+      });
+    }
+    
+    if (price < 0 || quantity < 0) {
+      return res.status(400).json({ 
+        error: 'Price and quantity must be non-negative numbers.' 
+      });
+    }
+    
+    const productData = {
+      name: name.trim(),
+      price: parseFloat(price),
+      quantity: parseInt(quantity),
+      description: description?.trim() || `Product: ${name.trim()}`,
+      category: category?.trim() || 'General',
+      productType: productType || 'PHYSICAL'
+    };
+    
+    const newProduct = await ProductService.createProduct(productData);
+    
+    console.log(`➕ MongoDB: New product added: ${newProduct.name} - ${newProduct.formattedPrice} (${newProduct.quantity} units)`);
+    
+    res.json({ 
+      success: true, 
+      product: {
+        id: newProduct.productId,
+        name: newProduct.name,
+        price: newProduct.price,
+        quantity: newProduct.quantity,
+        priceId: newProduct.priceId,
+        description: newProduct.description,
+        category: newProduct.category,
+        _id: newProduct._id
+      },
+      message: `Successfully added "${newProduct.name}" to MongoDB inventory` 
+    });
+    
+  } catch (error) {
+    console.error('MongoDB add product error:', error);
+    if (error.code === 11000) {
+      res.status(400).json({ 
+        error: 'Product with this name already exists. Use a different name or update the existing product.' 
+      });
+    } else {
+      res.status(500).json({ error: 'Failed to add product to MongoDB' });
+    }
+  }
+});
+
+// Bulk update quantities - specific route before /:id
+app.put('/mongodb/inventory/bulk-update', async (req, res) => {
+  try {
+    const { updates } = req.body;
+    
+    if (!Array.isArray(updates)) {
+      return res.status(400).json({ error: 'Updates must be an array' });
+    }
+    
+    console.log(`📦 MongoDB: Bulk updating ${updates.length} products`);
+    
+    const results = await ProductService.bulkUpdateQuantities(updates);
+    
+    res.json({ 
+      success: true,
+      updatedCount: results.length,
+      results: results.map(product => ({
+        id: product.productId,
+        name: product.name,
+        quantity: product.quantity
+      })),
+      message: `Successfully bulk updated ${results.length} products in MongoDB`
+    });
+    
+  } catch (error) {
+    console.error('MongoDB bulk update error:', error);
+    res.status(500).json({ error: 'Failed to bulk update products in MongoDB' });
+  }
+});
+
+// Get single product details - this route must come AFTER all specific routes
+app.get('/mongodb/inventory/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`🔍 MongoDB: Getting product details for ID: ${id}`);
+    
+    const product = await ProductService.getProductById(id);
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    res.json({
+      id: product.productId,
+      name: product.name,
+      price: product.price,
+      quantity: product.quantity,
+      priceId: product.priceId,
+      description: product.description,
+      image: product.image,
+      source: product.source,
+      productType: product.productType,
+      category: product.category,
+      sku: product.sku,
+      _id: product._id,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt
+    });
+  } catch (error) {
+    console.error('Get product error:', error);
+    res.status(500).json({ error: 'Failed to fetch product' });
+  }
+});
+
+// Update product quantity
+app.put('/mongodb/inventory/:id/quantity', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { quantity } = req.body;
+    
+    if (typeof quantity !== 'number' || quantity < 0) {
+      return res.status(400).json({ 
+        error: 'Quantity must be a non-negative number.' 
+      });
+    }
+    
+    const oldProduct = await ProductService.getProductById(id);
+    if (!oldProduct) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    const updatedProduct = await ProductService.updateQuantity(id, quantity);
+    
+    console.log(`📦 MongoDB: Quantity updated for ${updatedProduct.name}: ${oldProduct.quantity} → ${updatedProduct.quantity} units`);
+    
+    res.json({ 
+      success: true, 
+      product: {
+        id: updatedProduct.productId,
+        name: updatedProduct.name,
+        oldQuantity: oldProduct.quantity,
+        newQuantity: updatedProduct.quantity
+      },
+      message: `Updated ${updatedProduct.name} quantity from ${oldProduct.quantity} to ${updatedProduct.quantity}` 
+    });
+    
+  } catch (error) {
+    console.error('MongoDB update quantity error:', error);
+    res.status(500).json({ error: 'Failed to update quantity in MongoDB' });
+  }
+});
+
+// Delete product (soft delete)
+app.delete('/mongodb/inventory/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const product = await ProductService.getProductById(id);
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    await ProductService.deleteProduct(id);
+    
+    console.log(`🗑️ MongoDB: Product soft deleted: ${product.name}`);
+    
+    res.json({ 
+      success: true, 
+      message: `Successfully deleted "${product.name}" from MongoDB inventory` 
+    });
+    
+  } catch (error) {
+    console.error('MongoDB delete product error:', error);
+    res.status(500).json({ error: 'Failed to delete product from MongoDB' });
+  }
+});
+
+// Update product details
+app.put('/mongodb/inventory/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, price, quantity, description, category, productType } = req.body;
+    
+    const oldProduct = await ProductService.getProductById(id);
+    if (!oldProduct) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    const updateData = {};
+    if (name !== undefined) updateData.name = name.trim();
+    if (price !== undefined) updateData.price = parseFloat(price);
+    if (quantity !== undefined) updateData.quantity = parseInt(quantity);
+    if (description !== undefined) updateData.description = description.trim();
+    if (category !== undefined) updateData.category = category.trim();
+    if (productType !== undefined) updateData.productType = productType;
+    
+    const updatedProduct = await ProductService.updateProduct(id, updateData);
+    
+    console.log(`📝 MongoDB: Product updated: ${updatedProduct.name}`);
+    
+    res.json({ 
+      success: true, 
+      product: {
+        id: updatedProduct.productId,
+        name: updatedProduct.name,
+        price: updatedProduct.price,
+        quantity: updatedProduct.quantity,
+        priceId: updatedProduct.priceId,
+        description: updatedProduct.description,
+        category: updatedProduct.category,
+        _id: updatedProduct._id
+      },
+      message: `Successfully updated "${updatedProduct.name}" in MongoDB inventory` 
+    });
+    
+  } catch (error) {
+    console.error('MongoDB update product error:', error);
+    if (error.code === 11000) {
+      res.status(400).json({ 
+        error: 'Product with this name already exists. Use a different name.' 
+      });
+    } else {
+      res.status(500).json({ error: 'Failed to update product in MongoDB' });
+    }
+  }
+});
+
+// Bulk update quantities
+app.put('/mongodb/inventory/bulk-update', async (req, res) => {
+  try {
+    const { updates } = req.body;
+    
+    if (!Array.isArray(updates)) {
+      return res.status(400).json({ error: 'Updates must be an array' });
+    }
+    
+    console.log(`📦 MongoDB: Bulk updating ${updates.length} products`);
+    
+    const results = await ProductService.bulkUpdateQuantities(updates);
+    
+    res.json({ 
+      success: true,
+      updatedCount: results.length,
+      results: results.map(product => ({
+        id: product.productId,
+        name: product.name,
+        quantity: product.quantity
+      })),
+      message: `Successfully bulk updated ${results.length} products in MongoDB`
+    });
+    
+  } catch (error) {
+    console.error('MongoDB bulk update error:', error);
+    res.status(500).json({ error: 'Failed to bulk update products in MongoDB' });
+  }
+});
+
+// Export products data
+app.get('/mongodb/inventory/export', async (req, res) => {
+  try {
+    console.log('📤 MongoDB: Exporting products data');
+    
+    const exportData = await ProductService.exportProducts();
+    
+    res.json({ 
+      success: true,
+      count: exportData.length,
+      data: exportData,
+      exportedAt: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('MongoDB export error:', error);
+    res.status(500).json({ error: 'Failed to export products from MongoDB' });
+  }
+});
+
+// Initialize/Reset MongoDB inventory with default products
+app.post('/mongodb/inventory/initialize', async (req, res) => {
+  try {
+    console.log('🔄 MongoDB: Manual initialization requested');
+    
+    const products = await ProductService.initializeDefaultProducts();
+    
+    res.json({ 
+      success: true,
+      count: products.length,
+      message: `Successfully initialized MongoDB inventory with ${products.length} products`,
+      products: products.map(p => ({ name: p.name, price: p.formattedPrice, quantity: p.quantity }))
+    });
+    
+  } catch (error) {
+    console.error('MongoDB initialization error:', error);
+    res.status(500).json({ error: 'Failed to initialize MongoDB inventory' });
+  }
+});
 
 // Manual sync endpoints
 app.post('/sync/products', async (req, res) => {

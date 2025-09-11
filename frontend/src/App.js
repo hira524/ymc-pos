@@ -83,7 +83,7 @@ const CustomConfirmDialog = ({ isVisible, message, onConfirm, onCancel }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 10000,
+        zIndex: 20000,
         animation: 'fadeIn 0.3s ease-out'
       }}
       onClick={onCancel}
@@ -530,6 +530,13 @@ function App() {
   const [showInventoryManager, setShowInventoryManager] = useState(false);
   const [inventoryAction, setInventoryAction] = useState(''); // 'add', 'edit', 'view'
   const [selectedItem, setSelectedItem] = useState(null);
+  const [newProduct, setNewProduct] = useState({
+    name: '',
+    price: '',
+    quantity: '',
+    description: ''
+  });
+  const [showDeleteMode, setShowDeleteMode] = useState(false);
 
   // Product sync state
   const [syncStatus, setSyncStatus] = useState({
@@ -554,10 +561,10 @@ function App() {
 
   // Dynamic backend URL for different environments
   const getBackendUrl = () => {
-    // Production environment (Netlify + Render)
-    if (window.location.hostname.includes('netlify.app') || 
-        window.location.hostname !== 'localhost') {
-      return process.env.REACT_APP_BACKEND_URL || 'https://ymc-pos-backend.onrender.com';
+    // Local development - use port 5000 where our backend is running
+    if (window.location.hostname === 'localhost' || 
+        window.location.hostname === '127.0.0.1') {
+      return process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
     }
     
     // Codespaces environment
@@ -566,8 +573,8 @@ function App() {
       return baseUrl;
     }
     
-    // Local development
-    return 'http://localhost:5000';
+    // Production environment (Netlify + Render)
+    return process.env.REACT_APP_BACKEND_URL || 'https://ymc-pos-backend.onrender.com';
   };
 
   const BACKEND_URL = getBackendUrl();
@@ -684,13 +691,24 @@ function App() {
         return initializeStripeTerminal(true); // Default to test mode
       });
 
-    // 2) Fetch inventory in parallel
-    axios.get(`${BACKEND_URL}/inventory`)
+    // 2) Fetch inventory from MongoDB
+    axios.get(`${BACKEND_URL}/mongodb/inventory`)
       .then(r => {
         setInventory(r.data);
-        console.log('Inventory loaded successfully:', r.data.length, 'items');
+        console.log('Inventory loaded from MongoDB:', r.data.length, 'items');
         if (r.data.length === 0) {
-          showAlert('**Inventory Notice**\n\nNo products found in inventory.\n\n*Please add products to start selling.*', 'warning');
+          showAlert('**Inventory Notice**\n\nNo products found in MongoDB inventory.\n\n*Please add products to start selling.*', 'warning');
+        }
+      })
+      .catch(e => {
+        console.error('MongoDB inventory fetch error:', e.response?.data || e.message);
+        // Fallback to regular inventory endpoint
+        return axios.get(`${BACKEND_URL}/inventory`);
+      })
+      .then(r => {
+        if (r && r.data) {
+          setInventory(r.data);
+          console.log('Fallback inventory loaded:', r.data.length, 'items');
         }
       })
       .catch(e => {
@@ -1091,6 +1109,160 @@ function App() {
     setShowInventoryManager(false);
     setInventoryAction('');
     setSelectedItem(null);
+    setShowDeleteMode(false); // Reset delete mode for safety
+    setNewProduct({
+      name: '',
+      price: '',
+      quantity: '',
+      description: ''
+    });
+  };
+
+  const openInventoryManager = (action, item = null) => {
+    setInventoryAction(action);
+    setSelectedItem(item);
+    setShowInventoryManager(true);
+    
+    if (action === 'edit' && item) {
+      setNewProduct({
+        name: item.name || '',
+        price: item.price || '',
+        quantity: item.quantity || '',
+        description: item.description || ''
+      });
+    } else {
+      setNewProduct({
+        name: '',
+        price: '',
+        quantity: '',
+        description: ''
+      });
+    }
+  };
+
+  const addNewProduct = async () => {
+    // Validate required fields
+    if (!newProduct.name.trim()) {
+      showAlert('**Product Name Required**\n\nPlease enter a product name.', 'warning');
+      return;
+    }
+    
+    if (!newProduct.price || parseFloat(newProduct.price) <= 0) {
+      showAlert('**Valid Price Required**\n\nPlease enter a valid price greater than $0.', 'warning');
+      return;
+    }
+    
+    if (!newProduct.quantity || parseInt(newProduct.quantity) < 0) {
+      showAlert('**Valid Quantity Required**\n\nPlease enter a valid quantity (0 or greater).', 'warning');
+      return;
+    }
+
+    try {
+      const productData = {
+        name: newProduct.name.trim(),
+        price: parseFloat(newProduct.price),
+        quantity: parseInt(newProduct.quantity),
+        description: newProduct.description.trim(),
+        category: 'Custom',
+        isManual: true
+      };
+
+      const response = await axios.post(`${BACKEND_URL}/mongodb/inventory/add-product`, productData);
+      
+      // Update local inventory
+      setInventory(prev => [...prev, response.data]);
+      
+      showAlert(`**Product Added**\n\n${response.data.name} has been added to inventory.`, 'success');
+      openInventoryManager('view');
+    } catch (error) {
+      console.error('Error adding product:', error);
+      showAlert(`**Add Product Failed**\n\n${error.response?.data?.error || error.message}`, 'error');
+    }
+  };
+
+  const updateProduct = async () => {
+    // Validate required fields
+    if (!newProduct.name.trim()) {
+      showAlert('**Product Name Required**\n\nPlease enter a product name.', 'warning');
+      return;
+    }
+    
+    if (!newProduct.price || parseFloat(newProduct.price) <= 0) {
+      showAlert('**Valid Price Required**\n\nPlease enter a valid price greater than $0.', 'warning');
+      return;
+    }
+    
+    if (!newProduct.quantity || parseInt(newProduct.quantity) < 0) {
+      showAlert('**Valid Quantity Required**\n\nPlease enter a valid quantity (0 or greater).', 'warning');
+      return;
+    }
+
+    if (!selectedItem) {
+      showAlert('**No Product Selected**\n\nCannot update product.', 'error');
+      return;
+    }
+
+    try {
+      const productData = {
+        name: newProduct.name.trim(),
+        price: parseFloat(newProduct.price),
+        quantity: parseInt(newProduct.quantity),
+        description: newProduct.description.trim()
+      };
+
+      const response = await axios.put(`${BACKEND_URL}/mongodb/inventory/${selectedItem._id}`, productData);
+      
+      // Update local inventory
+      setInventory(prev => prev.map(item => 
+        item._id === selectedItem._id ? response.data : item
+      ));
+      
+      showAlert(`**Product Updated**\n\n${response.data.name} has been updated.`, 'success');
+      openInventoryManager('view');
+    } catch (error) {
+      console.error('Error updating product:', error);
+      showAlert(`**Update Product Failed**\n\n${error.response?.data?.error || error.message}`, 'error');
+    }
+  };
+
+  const updateProductQuantity = async (productId, newQuantity) => {
+    try {
+      // eslint-disable-next-line no-unused-vars
+      const response = await axios.put(`${BACKEND_URL}/mongodb/inventory/${productId}/quantity`, {
+        quantity: newQuantity
+      });
+      
+      // Update local inventory
+      setInventory(prev => prev.map(item => 
+        item._id === productId ? { ...item, quantity: newQuantity } : item
+      ));
+      
+      showAlert(`**Quantity Updated**\n\nStock updated to ${newQuantity} units.`, 'success');
+    } catch (error) {
+      console.error('Error updating quantity:', error);
+      showAlert(`**Update Failed**\n\n${error.response?.data?.error || error.message}`, 'error');
+    }
+  };
+
+  const deleteProduct = async (productId, productName) => {
+    const confirmAction = async () => {
+      try {
+        await axios.delete(`${BACKEND_URL}/mongodb/inventory/${productId}`);
+        
+        // Update local inventory
+        setInventory(prev => prev.filter(item => item._id !== productId));
+        
+        showAlert(`**Product Deleted**\n\n${productName} has been removed from inventory.`, 'success');
+      } catch (error) {
+        console.error('Error deleting product:', error);
+        showAlert(`**Delete Failed**\n\n${error.response?.data?.error || error.message}`, 'error');
+      }
+    };
+
+    showConfirmDialog(
+      `Are you sure you want to delete "${productName}"?\n\nThis action cannot be undone.`,
+      confirmAction
+    );
   };
 
   // Product synchronization functions
@@ -1518,7 +1690,7 @@ function App() {
             <h1 className="header-title">🏪 YMC Desktop POS</h1>
             <p className="header-subtitle">Point of Sale System</p>
           </div>
-          {/*<button
+          <button
             className="inventory-manager-btn"
             onClick={() => openInventoryManager('view')}
             style={{
@@ -1546,7 +1718,7 @@ function App() {
             }}
           >
             📦 Manage Inventory
-          </button>*/}
+          </button>
         </div>
       </header>
 
@@ -2060,19 +2232,8 @@ function App() {
       )}
 
       {/* Inventory Management Popup */}
-     {/* {showInventoryManager && (
-        <div className="discount-popup-overlay animate-fade-in" style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 10000
-        }}>
+      {showInventoryManager && (
+        <div className="inventory-manager-overlay animate-fade-in">
           <div className="inventory-manager-popup animate-slide-up">
             <div className="popup-header" style={{ 
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -2102,20 +2263,92 @@ function App() {
                     display: 'flex', 
                     justifyContent: 'space-between', 
                     alignItems: 'center',
-                    marginBottom: 'var(--spacing-4)'
+                    marginBottom: 'var(--spacing-4)',
+                    flexWrap: 'wrap',
+                    gap: 'var(--spacing-2)'
                   }}>
-                    <h4 style={{ margin: 0, color: 'var(--text-color)' }}>Current Inventory</h4>
-                    <button
-                      className="btn-success"
-                      onClick={() => openInventoryManager('add')}
-                      style={{ 
-                        fontSize: 'var(--font-size-sm)',
-                        padding: '8px 16px'
-                      }}
-                    >
-                      ➕ Add Product
-                    </button>
+                    <h4 style={{ margin: 0, color: 'var(--text-color)' }}>
+                      Current Inventory ({inventory.length} items)
+                    </h4>
+                    <div style={{ display: 'flex', gap: 'var(--spacing-2)', alignItems: 'center' }}>
+                      <button
+                        className={showDeleteMode ? "btn-danger" : "btn-secondary"}
+                        onClick={() => setShowDeleteMode(!showDeleteMode)}
+                        style={{ 
+                          fontSize: 'var(--font-size-sm)',
+                          padding: '8px 16px'
+                        }}
+                        title={showDeleteMode ? "Hide delete options" : "Show delete options"}
+                      >
+                        {showDeleteMode ? '🔒 Safe Mode' : '🗑️ Delete Mode'}
+                      </button>
+                      <button
+                        className="btn-success"
+                        onClick={() => openInventoryManager('add')}
+                        style={{ 
+                          fontSize: 'var(--font-size-sm)',
+                          padding: '8px 16px'
+                        }}
+                      >
+                        ➕ Add Product
+                      </button>
+                    </div>
                   </div>
+                  
+                  {showDeleteMode && (
+                    <div style={{
+                      background: 'rgba(220, 53, 69, 0.1)',
+                      border: '2px solid rgba(220, 53, 69, 0.3)',
+                      borderRadius: 'var(--border-radius)',
+                      padding: 'var(--spacing-3)',
+                      marginBottom: 'var(--spacing-4)'
+                    }}>
+                      <h5 style={{ margin: '0 0 8px 0', color: '#dc3545', fontSize: 'var(--font-size-sm)' }}>
+                        ⚠️ Delete Mode Active
+                      </h5>
+                      <p style={{ margin: '0 0 12px 0', fontSize: 'var(--font-size-xs)', color: '#6c757d' }}>
+                        Delete buttons are now visible. Click 🗑️ next to any product to remove it.
+                      </p>
+                      <div style={{ display: 'flex', gap: 'var(--spacing-2)' }}>
+                        <button
+                          className="btn-danger"
+                          onClick={() => {
+                            showConfirmDialog(
+                              `Are you sure you want to delete ALL ${inventory.length} products?\n\nThis action cannot be undone!`,
+                              async () => {
+                                try {
+                                  for (const item of inventory) {
+                                    await axios.delete(`${BACKEND_URL}/mongodb/inventory/${item._id || item.id}`);
+                                  }
+                                  setInventory([]);
+                                  showAlert('**All Products Deleted**\n\nInventory has been cleared.', 'success');
+                                } catch (error) {
+                                  console.error('Bulk delete error:', error);
+                                  showAlert(`**Bulk Delete Failed**\n\n${error.response?.data?.error || error.message}`, 'error');
+                                }
+                              }
+                            );
+                          }}
+                          style={{ 
+                            fontSize: 'var(--font-size-xs)',
+                            padding: '6px 12px'
+                          }}
+                        >
+                          🗑️ Delete All Products
+                        </button>
+                        <button
+                          className="btn-secondary"
+                          onClick={() => setShowDeleteMode(false)}
+                          style={{ 
+                            fontSize: 'var(--font-size-xs)',
+                            padding: '6px 12px'
+                          }}
+                        >
+                          Cancel Delete Mode
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   
                   <div style={{ 
                     display: 'grid', 
@@ -2124,19 +2357,56 @@ function App() {
                     overflowY: 'auto'
                   }}>
                     {inventory.map((item) => (
-                      <div key={item.id} style={{
+                      <div key={item._id || item.id} style={{
                         border: '2px solid var(--border-color)',
                         borderRadius: 'var(--border-radius)',
                         padding: 'var(--spacing-3)',
                         background: 'var(--card-background)',
                         display: 'flex',
                         justifyContent: 'space-between',
-                        alignItems: 'center'
+                        alignItems: 'center',
+                        transition: 'all 0.2s ease'
                       }}>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: '600', marginBottom: '4px' }}>{item.name}</div>
+                          <div style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '8px',
+                            marginBottom: '4px' 
+                          }}>
+                            <div style={{ fontWeight: '600' }}>{item.name}</div>
+                            {item.category && (
+                              <span style={{
+                                background: 'var(--primary-color)',
+                                color: 'white',
+                                fontSize: '10px',
+                                padding: '2px 6px',
+                                borderRadius: '12px',
+                                fontWeight: '500'
+                              }}>
+                                {item.category}
+                              </span>
+                            )}
+                            {item.isManual && (
+                              <span style={{
+                                background: '#28a745',
+                                color: 'white',
+                                fontSize: '10px',
+                                padding: '2px 6px',
+                                borderRadius: '12px',
+                                fontWeight: '500'
+                              }}>
+                                CUSTOM
+                              </span>
+                            )}
+                          </div>
                           <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
                             ${item.price.toFixed(2)} • Stock: {item.quantity} units
+                            {item.description && (
+                              <span style={{ marginLeft: '8px', fontStyle: 'italic' }}>
+                                • {item.description.substring(0, 50)}{item.description.length > 50 ? '...' : ''}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -2169,15 +2439,16 @@ function App() {
                           >
                             ✏️
                           </button>
-                          {item.isManual && (
+                          {showDeleteMode && (
                             <button
                               className="btn-danger"
-                              onClick={() => deleteProduct(item.id, item.name)}
+                              onClick={() => deleteProduct(item._id || item.id, item.name)}
                               style={{ 
                                 fontSize: 'var(--font-size-xs)',
                                 padding: '6px 12px',
                                 minWidth: 'auto'
                               }}
+                              title="Delete this product"
                             >
                               🗑️
                             </button>
@@ -2347,7 +2618,7 @@ function App() {
             </div>
           </div>
         </div>
-      )}*/}
+      )}
 
       {/* Other Product Calculator Popup */}
       {showOtherProductCalculator && (
