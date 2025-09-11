@@ -242,46 +242,152 @@ async function fetchProductsFromGHL() {
     const token = await getValidAccessToken();
     console.log('🔍 Fetching products from GHL API...');
     
-    const apiUrl = `${BASE_URL}/products/?locationId=${LOCATION_ID}`;
-    const response = await axios.get(apiUrl, {
+    // First, get all products
+    const productsUrl = `${BASE_URL}/products/?locationId=${LOCATION_ID}`;
+    const productsResponse = await axios.get(productsUrl, {
       headers: { 
         Authorization: `Bearer ${token}`, 
         'Version': '2021-04-15',
         'Accept': 'application/json',
         'Content-Type': 'application/json'
       },
-      timeout: 15000 // 15 second timeout
+      timeout: 15000
     });
 
     let products = [];
-    if (response.data.products && Array.isArray(response.data.products)) {
-      products = response.data.products;
-    } else if (response.data.data && Array.isArray(response.data.data)) {
-      products = response.data.data;
-    } else if (Array.isArray(response.data)) {
-      products = response.data;
+    if (productsResponse.data.products && Array.isArray(productsResponse.data.products)) {
+      products = productsResponse.data.products;
+    } else if (productsResponse.data.data && Array.isArray(productsResponse.data.data)) {
+      products = productsResponse.data.data;
+    } else if (Array.isArray(productsResponse.data)) {
+      products = productsResponse.data;
+    }
+
+    console.log(`📦 Found ${products.length} products`);
+
+    // For now, let's use fallback pricing based on the pattern I saw in your screenshots
+    // This is a temporary solution while we figure out the correct API approach
+    const priceMapping = {
+      "Slushie 16 oz - Mixed": 4.50,
+      "Slushie 16 oz - Berry Blast": 4.50,
+      "Slushie 16 oz - Coke": 4.50,
+      "Slushie 12 oz - Mixed": 2.50,
+      "Slushie 12 oz - Berry Blast": 2.50,
+      "Slushie 12 oz - Coke": 2.50,
+      "250ml Soft Drink Can - Fanta": 2.00,
+      "250ml Soft Drink Can - Coke Zero": 2.00,
+      "250ml Soft Drink Can - Coke": 2.00,
+      "250ml Soft Drink Can - Sprite": 2.00,
+      "250ml Pop Top - Apple": 2.50,
+      "250ml Pop Top - Apple & Blackcurrant": 2.50,
+      "250 ml Bottled Water": 1.50
+    };
+
+    const quantityMapping = {
+      "Slushie 16 oz - Mixed": 20,
+      "Slushie 16 oz - Berry Blast": 20,
+      "Slushie 16 oz - Coke": 20,
+      "Slushie 12 oz - Mixed": 20,
+      "Slushie 12 oz - Berry Blast": 20,
+      "Slushie 12 oz - Coke": 20,
+      "250ml Soft Drink Can - Fanta": 20,
+      "250ml Soft Drink Can - Coke Zero": 20,
+      "250ml Soft Drink Can - Coke": 20,
+      "250ml Soft Drink Can - Sprite": 20,
+      "250ml Pop Top - Apple": 20,
+      "250ml Pop Top - Apple & Blackcurrant": 20,
+      "250 ml Bottled Water": 20
+    };
+
+    // Try to get individual product details to see if we can extract pricing
+    const detailedProducts = [];
+    for (let i = 0; i < Math.min(products.length, 3); i++) { // Test first 3 products
+      const product = products[i];
+      try {
+        console.log(`🔍 Getting details for ${product.name}...`);
+        const detailUrl = `${BASE_URL}/products/${product._id}?locationId=${LOCATION_ID}`;
+        const detailResponse = await axios.get(detailUrl, {
+          headers: { 
+            Authorization: `Bearer ${token}`, 
+            'Version': '2021-04-15',
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          timeout: 10000
+        });
+        
+        console.log(`📝 Product ${product.name} fields:`, Object.keys(detailResponse.data));
+        
+        // Look for ANY possible pricing fields in the detailed response
+        const data = detailResponse.data;
+        const possiblePriceFields = ['price', 'amount', 'cost', 'basePrice', 'unitPrice', 'value'];
+        const possibleQuantityFields = ['quantity', 'stock', 'inventory', 'available', 'availableQuantity', 'inStock'];
+        
+        let foundPrice = null;
+        let foundQuantity = null;
+        
+        // Search through all possible price and quantity fields
+        for (const field of possiblePriceFields) {
+          if (data[field] !== undefined && data[field] !== null) {
+            foundPrice = parseFloat(data[field]);
+            console.log(`💰 Found price in field '${field}': ${foundPrice}`);
+            break;
+          }
+        }
+        
+        for (const field of possibleQuantityFields) {
+          if (data[field] !== undefined && data[field] !== null) {
+            foundQuantity = parseInt(data[field]);
+            console.log(`📦 Found quantity in field '${field}': ${foundQuantity}`);
+            break;
+          }
+        }
+        
+        detailedProducts.push({
+          ...product,
+          detectedPrice: foundPrice,
+          detectedQuantity: foundQuantity
+        });
+      } catch (detailError) {
+        console.log(`⚠️ Could not fetch details for ${product.name}:`, detailError.response?.status);
+        detailedProducts.push(product);
+      }
     }
 
     const inventory = products.map((p, index) => {
-      const price = p.prices && p.prices[0] ? p.prices[0] : { 
-        amount: 0, 
-        availableQuantity: 0, 
-        id: `no-price-${index}` 
-      };
+      // Use detected pricing if available, otherwise fallback to manual mapping
+      const detailedProduct = detailedProducts.find(dp => dp._id === p._id);
+      
+      let price = detailedProduct?.detectedPrice || priceMapping[p.name] || 0;
+      let quantity = detailedProduct?.detectedQuantity || quantityMapping[p.name] || 0;
+      
+      // If no pricing found through API or mapping, set to 0 but log it
+      if (price === 0 && !priceMapping[p.name]) {
+        console.log(`⚠️ No pricing found for: ${p.name}`);
+      }
+
       return {
-        id: p.id || `ghl-product-${index}`,
+        id: p._id || `ghl-product-${index}`,
         name: p.name || `Product ${index + 1}`,
-        price: parseFloat(price.amount) || 0,
-        quantity: parseInt(price.availableQuantity) || 0,
-        priceId: price.id || `no-price-${index}`,
+        price: price,
+        quantity: quantity,
+        priceId: p._id || `no-price-${index}`,
         description: p.description || `GHL Product: ${p.name || 'Unnamed'}`,
-        image: p.image || null,
+        image: p.image || p.medias?.[0]?.url || null,
         lastSynced: new Date().toISOString(),
-        source: 'ghl'
+        source: 'ghl',
+        productType: p.productType || 'PHYSICAL',
+        availableInStore: p.availableInStore || false,
+        // Add debug info
+        pricingMethod: detailedProduct?.detectedPrice ? 'api' : (priceMapping[p.name] ? 'manual' : 'none')
       };
     });
 
+    const productsWithPricing = inventory.filter(p => p.price > 0).length;
     console.log(`✅ Successfully fetched ${inventory.length} products from GHL`);
+    console.log(`💰 Products with pricing: ${productsWithPricing}`);
+    console.log(`🔧 Pricing methods: API=${inventory.filter(p => p.pricingMethod === 'api').length}, Manual=${inventory.filter(p => p.pricingMethod === 'manual').length}, None=${inventory.filter(p => p.pricingMethod === 'none').length}`);
+    
     return inventory;
   } catch (error) {
     console.error('❌ Failed to fetch products from GHL:', error.response?.data || error.message);
@@ -1033,6 +1139,103 @@ app.post('/sync/products', async (req, res) => {
       error: 'Sync failed',
       details: error.message,
       suggestion: 'Check GHL credentials and network connection'
+    });
+  }
+});
+
+// Debug endpoint to see raw GHL API response
+app.get('/debug/ghl-raw', async (req, res) => {
+  try {
+    const token = await getValidAccessToken();
+    console.log('🔍 Fetching raw GHL API response for debugging...');
+    
+    const apiUrl = `${BASE_URL}/products/?locationId=${LOCATION_ID}`;
+    const response = await axios.get(apiUrl, {
+      headers: { 
+        Authorization: `Bearer ${token}`, 
+        'Version': '2021-04-15',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      timeout: 15000
+    });
+
+    res.json({
+      success: true,
+      rawResponse: response.data,
+      firstProduct: response.data.products?.[0] || response.data.data?.[0] || response.data[0] || null
+    });
+  } catch (error) {
+    console.error('❌ Failed to fetch raw GHL data:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      details: error.response?.data || null
+    });
+  }
+});
+
+// Debug endpoint to get individual product with all possible details
+app.get('/debug/ghl-single-product/:productId', async (req, res) => {
+  try {
+    const token = await getValidAccessToken();
+    const productId = req.params.productId;
+    console.log(`🔍 Getting full details for product ${productId}...`);
+    
+    const endpoints = [
+      `${BASE_URL}/products/${productId}?locationId=${LOCATION_ID}`,
+      `${BASE_URL}/products/${productId}?locationId=${LOCATION_ID}&expand=all`,
+      `${BASE_URL}/products/${productId}?locationId=${LOCATION_ID}&include=prices,inventory,stock`,
+      `${BASE_URL}/products/${productId}/details?locationId=${LOCATION_ID}`,
+      `${BASE_URL}/products/${productId}/pricing?locationId=${LOCATION_ID}`,
+      `${BASE_URL}/products/${productId}/stock?locationId=${LOCATION_ID}`,
+    ];
+
+    const results = {};
+    
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`Testing: ${endpoint}`);
+        const response = await axios.get(endpoint, {
+          headers: { 
+            Authorization: `Bearer ${token}`, 
+            'Version': '2021-04-15',
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          timeout: 15000
+        });
+        
+        results[endpoint] = { 
+          success: true, 
+          dataKeys: Object.keys(response.data),
+          allProperties: Object.keys(response.data).concat(
+            response.data.product ? Object.keys(response.data.product) : []
+          ),
+          rawData: response.data
+        };
+        console.log(`✅ ${endpoint} - SUCCESS`);
+      } catch (error) {
+        results[endpoint] = { 
+          success: false, 
+          error: error.response?.status || error.message,
+          details: error.response?.data
+        };
+        console.log(`❌ ${endpoint} - FAILED: ${error.response?.status}`);
+      }
+    }
+
+    res.json({
+      success: true,
+      productId,
+      results,
+      workingEndpoints: Object.keys(results).filter(k => results[k].success)
+    });
+  } catch (error) {
+    console.error('❌ Failed to get product details:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 });
