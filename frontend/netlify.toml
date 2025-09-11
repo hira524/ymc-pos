@@ -5,6 +5,7 @@
 [build.environment]
   NODE_VERSION = "18"
   SECRETS_SCAN_OMIT_KEYS = "NODE_ENV"
+  REACT_APP_BACKEND_URL = "https://ymc-pos-backend-a6db766d7240.herokuapp.com"
 
 [[redirects]]
   from = "/*"
@@ -13,3 +14,4 @@
 
 [context.production.environment]
   NODE_ENV = "production"
+  REACT_APP_BACKEND_URL = "https://ymc-pos-backend-a6db766d7240.herokuapp.com"

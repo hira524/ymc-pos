@@ -573,8 +573,8 @@ function App() {
       return baseUrl;
     }
     
-    // Production environment (Netlify + Render)
-    return process.env.REACT_APP_BACKEND_URL || 'https://ymc-pos-backend.onrender.com';
+    // Production environment (Netlify + Heroku)
+    return process.env.REACT_APP_BACKEND_URL || 'https://ymc-pos-backend-a6db766d7240.herokuapp.com';
   };
 
   const BACKEND_URL = getBackendUrl();
