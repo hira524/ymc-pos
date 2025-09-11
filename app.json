@@ -1,0 +1,76 @@
+{
+  "name": "YMC POS System",
+  "description": "A Point of Sale system with inventory management, integrated with GoHighLevel and Stripe",
+  "repository": "https://github.com/hira524/ymc-pos",
+  "logo": "https://node-js-getting-started.herokuapp.com/node.svg",
+  "keywords": ["node", "express", "react", "pos", "inventory", "stripe"],
+  "image": "heroku/nodejs",
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    }
+  ],
+  "env": {
+    "NODE_ENV": {
+      "description": "Node environment",
+      "value": "production"
+    },
+    "MONGODB_URI": {
+      "description": "MongoDB connection string",
+      "required": true
+    },
+    "STRIPE_SECRET_KEY": {
+      "description": "Stripe secret key for payment processing",
+      "required": true
+    },
+    "STRIPE_PUBLISHABLE_KEY": {
+      "description": "Stripe publishable key for frontend",
+      "required": true
+    },
+    "GHL_CLIENT_ID": {
+      "description": "GoHighLevel client ID",
+      "required": true
+    },
+    "GHL_CLIENT_SECRET": {
+      "description": "GoHighLevel client secret",
+      "required": true
+    },
+    "GHL_LOCATION_ID": {
+      "description": "GoHighLevel location ID",
+      "required": true
+    },
+    "GHL_BASE_URL": {
+      "description": "GoHighLevel base URL",
+      "value": "https://services.leadconnectorhq.com"
+    },
+    "GHL_REDIRECT_URI": {
+      "description": "OAuth redirect URI (will be updated after app creation)",
+      "required": false
+    },
+    "EMAIL_USER": {
+      "description": "Email for notifications (optional)",
+      "required": false
+    },
+    "EMAIL_PASS": {
+      "description": "Email password for notifications (optional)",
+      "required": false
+    },
+    "ALERT_EMAIL": {
+      "description": "Email to receive alerts (optional)",
+      "required": false
+    },
+    "FRONTEND_URL": {
+      "description": "Frontend URL for CORS (optional)",
+      "required": false
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  },
+  "addons": [
+    "papertrail:choklad"
+  ]
+}
