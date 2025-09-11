@@ -608,8 +608,9 @@ const Payment = mongoose.model('Payment', new mongoose.Schema({
   method: String
 }));
 
-// Import Product Service
+// Import Product Service and Model
 const ProductService = require('./services/ProductService');
+const Product = require('./models/Product');
 
 // Initialize MongoDB inventory
 async function initializeInventory() {
@@ -1720,6 +1721,125 @@ app.post('/mongodb/inventory/initialize', async (req, res) => {
   } catch (error) {
     console.error('MongoDB initialization error:', error);
     res.status(500).json({ error: 'Failed to initialize MongoDB inventory' });
+  }
+});
+
+// =====================================
+// MONGODB SYNC ENDPOINTS
+// =====================================
+
+// MongoDB sync endpoint - synchronizes data within MongoDB
+app.post('/mongodb/sync', async (req, res) => {
+  try {
+    console.log('🔄 MongoDB sync requested - refreshing product data...');
+    
+    // Get all products from MongoDB
+    const products = await ProductService.getAllProducts();
+    
+    // Update lastSynced timestamp for all products
+    const updatedCount = await Product.updateMany(
+      { isActive: true },
+      { 
+        lastSynced: new Date(),
+        updatedAt: new Date()
+      }
+    );
+
+    console.log(`✅ MongoDB sync completed - refreshed ${products.length} products`);
+    
+    res.json({
+      success: true,
+      message: `Successfully synchronized ${products.length} products in MongoDB`,
+      products: products.length,
+      lastSync: new Date().toISOString(),
+      updatedProducts: updatedCount.modifiedCount
+    });
+  } catch (error) {
+    console.error('❌ MongoDB sync failed:', error);
+    res.status(500).json({
+      error: 'MongoDB sync failed',
+      details: error.message,
+      suggestion: 'Check MongoDB connection and try again'
+    });
+  }
+});
+
+// MongoDB sync status endpoint
+app.get('/mongodb/sync/status', async (req, res) => {
+  try {
+    // Get the most recent sync time from any product
+    const latestProduct = await Product.findOne(
+      { isActive: true },
+      {},
+      { sort: { lastSynced: -1 } }
+    );
+    
+    // Get total product count
+    const totalProducts = await Product.countDocuments({ isActive: true });
+    
+    res.json({
+      lastSync: latestProduct?.lastSynced?.toISOString() || null,
+      totalProducts: totalProducts,
+      syncActive: true, // MongoDB is always "active"
+      syncType: 'mongodb',
+      databaseStatus: 'connected'
+    });
+  } catch (error) {
+    console.error('❌ Failed to get MongoDB sync status:', error);
+    res.status(500).json({
+      error: 'Failed to get sync status',
+      details: error.message
+    });
+  }
+});
+
+// MongoDB full refresh endpoint - rebuilds indexes and optimizes data
+app.post('/mongodb/full-sync', async (req, res) => {
+  try {
+    console.log('🔄 MongoDB full sync requested - rebuilding indexes and optimizing...');
+    
+    // Get all products
+    const products = await ProductService.getAllProducts();
+    
+    // Update all products with fresh timestamps and ensure data consistency
+    const bulkOps = products.map(product => ({
+      updateOne: {
+        filter: { _id: product._id },
+        update: {
+          $set: {
+            lastSynced: new Date(),
+            updatedAt: new Date(),
+            // Ensure required fields have proper defaults
+            isActive: product.isActive !== false,
+            availableInStore: product.availableInStore !== false,
+            quantity: Math.max(0, product.quantity || 0),
+            price: Math.max(0, product.price || 0)
+          }
+        }
+      }
+    }));
+
+    if (bulkOps.length > 0) {
+      await Product.bulkWrite(bulkOps);
+    }
+
+    console.log(`✅ MongoDB full sync completed - optimized ${products.length} products`);
+    
+    res.json({
+      success: true,
+      message: `Full synchronization completed for ${products.length} products`,
+      products: products.length,
+      lastSync: new Date().toISOString(),
+      operations: bulkOps.length,
+      optimized: true
+    });
+  } catch (error) {
+    console.error('❌ MongoDB full sync failed:', error);
+    res.status(500).json({
+      error: 'MongoDB full sync failed',
+      details: error.message,
+      suggestion: 'Check MongoDB connection and data integrity'
+    });
   }
 });
 

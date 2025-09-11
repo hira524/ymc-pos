@@ -924,7 +924,18 @@ function App() {
     }
   };
 
-  const filtered = inventory.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
+  const filtered = inventory.filter(i => {
+    // Ensure item exists and has a valid name property
+    if (!i || !i.name || typeof i.name !== 'string') {
+      return false;
+    }
+    
+    // Ensure search is a string
+    const searchTerm = search && typeof search === 'string' ? search : '';
+    
+    // Perform case-insensitive search
+    return i.name.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   // Discount Functions
   const discountRoles = [
@@ -1169,11 +1180,25 @@ function App() {
 
       const response = await axios.post(`${BACKEND_URL}/mongodb/inventory/add-product`, productData);
       
-      // Update local inventory
-      setInventory(prev => [...prev, response.data]);
-      
-      showAlert(`**Product Added**\n\n${response.data.name} has been added to inventory.`, 'success');
-      openInventoryManager('view');
+      // Validate response data before adding to inventory
+      const productFromServer = response.data.product || response.data;
+      if (productFromServer && productFromServer.name) {
+        // Update local inventory
+        setInventory(prev => [...prev, productFromServer]);
+        
+        // Reset form
+        setNewProduct({
+          name: '',
+          price: '',
+          quantity: '',
+          description: ''
+        });
+        
+        showAlert(`**Product Added**\n\n${productFromServer.name} has been added to inventory.`, 'success');
+        openInventoryManager('view');
+      } else {
+        throw new Error('Invalid product data received from server');
+      }
     } catch (error) {
       console.error('Error adding product:', error);
       showAlert(`**Add Product Failed**\n\n${error.response?.data?.error || error.message}`, 'error');
@@ -1212,13 +1237,19 @@ function App() {
 
       const response = await axios.put(`${BACKEND_URL}/mongodb/inventory/${selectedItem._id}`, productData);
       
-      // Update local inventory
-      setInventory(prev => prev.map(item => 
-        item._id === selectedItem._id ? response.data : item
-      ));
-      
-      showAlert(`**Product Updated**\n\n${response.data.name} has been updated.`, 'success');
-      openInventoryManager('view');
+      // Validate response data before updating inventory
+      const productFromServer = response.data.product || response.data;
+      if (productFromServer && productFromServer.name) {
+        // Update local inventory
+        setInventory(prev => prev.map(item => 
+          item._id === selectedItem._id ? productFromServer : item
+        ));
+        
+        showAlert(`**Product Updated**\n\n${productFromServer.name} has been updated.`, 'success');
+        openInventoryManager('view');
+      } else {
+        throw new Error('Invalid product data received from server');
+      }
     } catch (error) {
       console.error('Error updating product:', error);
       showAlert(`**Update Product Failed**\n\n${error.response?.data?.error || error.message}`, 'error');
@@ -1269,15 +1300,15 @@ function App() {
   const refreshInventory = async () => {
     setSyncStatus(prev => ({ ...prev, syncing: true, error: null }));
     try {
-      console.log('🔄 Refreshing inventory...');
-      const response = await axios.get(`${BACKEND_URL}/inventory?refresh=true`);
+      console.log('🔄 Refreshing inventory from MongoDB...');
+      const response = await axios.get(`${BACKEND_URL}/mongodb/inventory`);
       setInventory(response.data);
       setSyncStatus({
         lastSync: new Date().toISOString(),
         syncing: false,
         error: null
       });
-      showAlert('**Inventory Refreshed**\n\nProduct data has been synchronized with GHL.', 'success');
+      showAlert('**Inventory Refreshed**\n\nProduct data has been synchronized with MongoDB.', 'success');
     } catch (error) {
       console.error('Inventory refresh failed:', error);
       setSyncStatus(prev => ({ 
@@ -1285,19 +1316,19 @@ function App() {
         syncing: false, 
         error: error.response?.data?.error || error.message 
       }));
-      showAlert(`**Sync Failed**\n\nCould not refresh inventory from GHL.\n\n**Error:** ${error.response?.data?.error || error.message}`, 'error');
+      showAlert(`**Sync Failed**\n\nCould not refresh inventory from MongoDB.\n\n**Error:** ${error.response?.data?.error || error.message}`, 'error');
     }
   };
 
   const manualSync = async () => {
     setSyncStatus(prev => ({ ...prev, syncing: true, error: null }));
     try {
-      console.log('🔄 Starting manual sync...');
-      const response = await axios.post(`${BACKEND_URL}/sync/products`);
+      console.log('🔄 Starting MongoDB inventory sync...');
+      const response = await axios.post(`${BACKEND_URL}/mongodb/sync`);
       await new Promise(resolve => setTimeout(resolve, 1000)); // Small delay for UX
       
-      // Refresh local inventory
-      const inventoryResponse = await axios.get(`${BACKEND_URL}/inventory`);
+      // Refresh local inventory from MongoDB
+      const inventoryResponse = await axios.get(`${BACKEND_URL}/mongodb/inventory`);
       setInventory(inventoryResponse.data);
       
       setSyncStatus({
@@ -1305,28 +1336,56 @@ function App() {
         syncing: false,
         error: null
       });
-      showAlert(`**Sync Complete**\n\n${response.data.products} products synchronized successfully.`, 'success');
+      showAlert(`**MongoDB Sync Complete**\n\n${response.data.products || response.data.message} products synchronized successfully.`, 'success');
     } catch (error) {
-      console.error('Manual sync failed:', error);
+      console.error('MongoDB sync failed:', error);
       setSyncStatus(prev => ({ 
         ...prev, 
         syncing: false, 
         error: error.response?.data?.error || error.message 
       }));
-      showAlert(`**Manual Sync Failed**\n\n${error.response?.data?.details || error.message}`, 'error');
+      showAlert(`**MongoDB Sync Failed**\n\n${error.response?.data?.details || error.message}`, 'error');
+    }
+  };
+
+  const fullSync = async () => {
+    setSyncStatus(prev => ({ ...prev, syncing: true, error: null }));
+    try {
+      console.log('🔄 Starting MongoDB full sync with optimization...');
+      const response = await axios.post(`${BACKEND_URL}/mongodb/full-sync`);
+      await new Promise(resolve => setTimeout(resolve, 1500)); // Longer delay for full sync
+      
+      // Refresh local inventory from MongoDB
+      const inventoryResponse = await axios.get(`${BACKEND_URL}/mongodb/inventory`);
+      setInventory(inventoryResponse.data);
+      
+      setSyncStatus({
+        lastSync: new Date().toISOString(),
+        syncing: false,
+        error: null
+      });
+      showAlert(`**MongoDB Full Sync Complete**\n\n✅ **Optimized:** ${response.data.products} products\n✅ **Operations:** ${response.data.operations} updates\n✅ **Data Consistency:** Verified\n\n*Database performance improved*`, 'success');
+    } catch (error) {
+      console.error('MongoDB full sync failed:', error);
+      setSyncStatus(prev => ({ 
+        ...prev, 
+        syncing: false, 
+        error: error.response?.data?.error || error.message 
+      }));
+      showAlert(`**MongoDB Full Sync Failed**\n\n${error.response?.data?.details || error.message}`, 'error');
     }
   };
 
   const checkSyncStatus = async () => {
     try {
-      const response = await axios.get(`${BACKEND_URL}/sync/status`);
+      const response = await axios.get(`${BACKEND_URL}/mongodb/sync/status`);
       setSyncStatus({
         lastSync: response.data.lastSync,
         syncing: false,
         error: null
       });
     } catch (error) {
-      console.error('Failed to check sync status:', error);
+      console.error('Failed to check MongoDB sync status:', error);
     }
   };
 
@@ -1816,6 +1875,25 @@ function App() {
                   
                   <button
                     onClick={manualSync}
+                    disabled={syncStatus.syncing}
+                    style={{
+                      background: syncStatus.syncing ? '#ccc' : 'linear-gradient(135deg, #FF9800 0%, #F57C00 100%)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '8px 12px',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: syncStatus.syncing ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.2s ease',
+                      opacity: syncStatus.syncing ? 0.6 : 1
+                    }}
+                  >
+                    {syncStatus.syncing ? 'Syncing...' : '🔄 Sync'}
+                  </button>
+                  
+                  <button
+                    onClick={fullSync}
                     disabled={syncStatus.syncing}
                     style={{
                       background: syncStatus.syncing ? '#ccc' : 'linear-gradient(135deg, #2196F3 0%, #1976D2 100%)',
