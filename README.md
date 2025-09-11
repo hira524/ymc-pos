@@ -2,7 +2,7 @@
 
 Enterprise-grade Point of Sale solution built on modern web technologies, featuring real-time payment processing, automated inventory management, and scalable microservices architecture. Designed for high-volume retail operations with integrated financial and CRM systems.
 
-**🚀 Now deployed on Heroku with automatic deployment from GitHub!**
+**🚀 Now deployed on Heroku with automatic deployment from GitHub! (Testing auto-deploy)**
 
 ## 🏗️ Architecture Overview
 
