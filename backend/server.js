@@ -108,6 +108,8 @@ let tokenRefreshInProgress = false;
 let lastSyncTime = null;
 let cachedInventory = null;
 let syncInterval = null;
+let tokenRefreshInterval = null;
+let tokenHealthCheckInterval = null;
 
 // Token management functions
 function getTokens() {
@@ -215,6 +217,262 @@ async function getValidAccessToken() {
 // Legacy function for backward compatibility
 async function getAccessToken() {
   return await getValidAccessToken();
+}
+
+// Enhanced Auto-Refresh Token Management System
+function getTokenExpiryTime(token) {
+  try {
+    if (!token) return null;
+    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+    return payload.exp ? payload.exp * 1000 : null; // Convert to milliseconds
+  } catch (error) {
+    console.error('Failed to parse token expiry:', error);
+    return null;
+  }
+}
+
+function getRefreshTokenExpiryTime() {
+  try {
+    const tokens = getTokens();
+    if (!tokens || !tokens.refresh_token) return null;
+    
+    const payload = JSON.parse(Buffer.from(tokens.refresh_token.split('.')[1], 'base64').toString());
+    return payload.exp ? payload.exp * 1000 : null; // Convert to milliseconds
+  } catch (error) {
+    console.error('Failed to parse refresh token expiry:', error);
+    return null;
+  }
+}
+
+function calculateRefreshSchedule() {
+  const tokens = getTokens();
+  if (!tokens || !tokens.access_token) return null;
+  
+  const expiryTime = getTokenExpiryTime(tokens.access_token);
+  if (!expiryTime) return null;
+  
+  const now = Date.now();
+  const timeUntilExpiry = expiryTime - now;
+  
+  // Refresh when 80% of the token lifetime has passed, but at least 5 minutes before expiry
+  const refreshTime = Math.min(
+    now + (timeUntilExpiry * 0.8), // 80% of lifetime
+    expiryTime - (5 * 60 * 1000)   // 5 minutes before expiry
+  );
+  
+  return Math.max(refreshTime - now, 30000); // At least 30 seconds from now
+}
+
+async function proactiveTokenRefresh() {
+  try {
+    console.log('🔄 Proactive token refresh initiated...');
+    
+    const tokens = getTokens();
+    if (!tokens) {
+      console.log('❌ No tokens found for proactive refresh');
+      return false;
+    }
+    
+    // Check if refresh token is about to expire
+    const refreshExpiryTime = getRefreshTokenExpiryTime();
+    if (refreshExpiryTime) {
+      const timeUntilRefreshExpiry = refreshExpiryTime - Date.now();
+      const daysUntilExpiry = Math.floor(timeUntilRefreshExpiry / (24 * 60 * 60 * 1000));
+      
+      console.log(`🕒 Refresh token expires in ${daysUntilExpiry} days`);
+      
+      // If refresh token expires in less than 7 days, send warning
+      if (daysUntilExpiry < 7) {
+        console.warn(`⚠️ WARNING: Refresh token expires in ${daysUntilExpiry} days! Please re-authorize soon.`);
+        await sendTokenExpiryWarning(daysUntilExpiry);
+      }
+      
+      // If refresh token expires in less than 1 day, don't attempt refresh
+      if (daysUntilExpiry < 1) {
+        console.error('❌ Refresh token expires soon. Manual re-authorization required.');
+        return false;
+      }
+    }
+    
+    // Attempt to refresh access token
+    const newAccessToken = await refreshAccessToken();
+    if (newAccessToken) {
+      console.log('✅ Proactive token refresh successful');
+      scheduleNextRefresh();
+      return true;
+    } else {
+      console.error('❌ Proactive token refresh failed');
+      return false;
+    }
+  } catch (error) {
+    console.error('❌ Proactive token refresh error:', error.message);
+    
+    // If refresh fails due to invalid grant, schedule re-authorization reminder
+    if (error.response?.data?.error === 'invalid_grant') {
+      console.log('🔑 Scheduling re-authorization reminder...');
+      scheduleReauthorizationReminder();
+    }
+    
+    return false;
+  }
+}
+
+function scheduleNextRefresh() {
+  // Clear existing schedule
+  if (tokenRefreshInterval) {
+    clearTimeout(tokenRefreshInterval);
+    tokenRefreshInterval = null;
+  }
+  
+  const nextRefreshIn = calculateRefreshSchedule();
+  if (nextRefreshIn && nextRefreshIn > 0) {
+    console.log(`⏰ Next token refresh scheduled in ${Math.round(nextRefreshIn / 60000)} minutes`);
+    
+    tokenRefreshInterval = setTimeout(async () => {
+      await proactiveTokenRefresh();
+    }, nextRefreshIn);
+  } else {
+    console.log('⚠️ Cannot schedule next refresh - token expiry unknown');
+  }
+}
+
+function startTokenHealthMonitoring() {
+  console.log('🏥 Starting token health monitoring...');
+  
+  // Check token health every 30 minutes
+  tokenHealthCheckInterval = setInterval(async () => {
+    try {
+      const tokens = getTokens();
+      if (!tokens) {
+        console.log('💔 No tokens found during health check');
+        return;
+      }
+      
+      const accessExpiryTime = getTokenExpiryTime(tokens.access_token);
+      const refreshExpiryTime = getRefreshTokenExpiryTime();
+      const now = Date.now();
+      
+      console.log('🏥 Token health check:');
+      
+      if (accessExpiryTime) {
+        const accessMinutesLeft = Math.floor((accessExpiryTime - now) / 60000);
+        console.log(`   Access token: ${accessMinutesLeft} minutes remaining`);
+        
+        // If access token expires in less than 10 minutes, refresh immediately
+        if (accessMinutesLeft < 10 && accessMinutesLeft > 0) {
+          console.log('🚨 Access token expires soon - refreshing immediately');
+          await proactiveTokenRefresh();
+        }
+      }
+      
+      if (refreshExpiryTime) {
+        const refreshDaysLeft = Math.floor((refreshExpiryTime - now) / (24 * 60 * 60 * 1000));
+        console.log(`   Refresh token: ${refreshDaysLeft} days remaining`);
+      }
+      
+    } catch (error) {
+      console.error('❌ Token health check failed:', error.message);
+    }
+  }, 30 * 60 * 1000); // Every 30 minutes
+}
+
+async function sendTokenExpiryWarning(daysRemaining) {
+  try {
+    if (!process.env.EMAIL_USER || !emailTransporter) {
+      console.log('📧 Email not configured - skipping token expiry warning');
+      return;
+    }
+    
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: process.env.ALERT_EMAIL || process.env.EMAIL_USER,
+      subject: `🚨 GoHighLevel Token Expiring Soon - ${daysRemaining} Days Left`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #ff6b35;">🚨 Token Expiry Warning</h2>
+          <div style="background: #fff3cd; padding: 20px; border-radius: 8px; border-left: 4px solid #ff6b35;">
+            <h3 style="margin-top: 0; color: #333;">GoHighLevel Refresh Token Expiring</h3>
+            <p><strong>Days Remaining:</strong> ${daysRemaining}</p>
+            <p><strong>System:</strong> YMC POS - Product Sync</p>
+            <p style="color: #ff6b35;"><strong>Action Required:</strong> Re-authorize before expiration to maintain automatic sync.</p>
+          </div>
+          <div style="margin-top: 20px; padding: 15px; background: #e3f2fd; border-radius: 8px;">
+            <h4 style="margin-top: 0;">How to Re-authorize:</h4>
+            <ol>
+              <li>Visit: <strong>http://your-server:5000/auth</strong></li>
+              <li>Complete GoHighLevel OAuth flow</li>
+              <li>Grant all required permissions</li>
+              <li>Verify product sync resumes</li>
+            </ol>
+          </div>
+          <p style="margin-top: 20px; font-size: 12px; color: #666;">
+            This warning is sent automatically when refresh tokens are approaching expiration.
+            The system will continue attempting automatic refresh until manual re-authorization is required.
+          </p>
+        </div>
+      `
+    };
+
+    await emailTransporter.sendMail(mailOptions);
+    console.log(`📧 Token expiry warning sent - ${daysRemaining} days remaining`);
+  } catch (error) {
+    console.error('Failed to send token expiry warning:', error);
+  }
+}
+
+function scheduleReauthorizationReminder() {
+  // Send periodic reminders every 6 hours when re-authorization is needed
+  const reminderInterval = setInterval(async () => {
+    console.log('🔔 REMINDER: GoHighLevel re-authorization required');
+    console.log('👉 Visit http://localhost:5000/auth to restore product sync');
+    
+    // Try to send email reminder if configured
+    try {
+      await sendTokenExpiryWarning(0); // 0 days = expired
+    } catch (error) {
+      // Ignore email errors during reminders
+    }
+  }, 6 * 60 * 60 * 1000); // Every 6 hours
+  
+  // Stop reminders after 3 days
+  setTimeout(() => {
+    clearInterval(reminderInterval);
+    console.log('🔕 Stopping re-authorization reminders after 3 days');
+  }, 3 * 24 * 60 * 60 * 1000);
+}
+
+async function initializeTokenManagement() {
+  console.log('🔧 Initializing enhanced token management...');
+  
+  const tokens = getTokens();
+  if (!tokens) {
+    console.log('❌ No tokens found - visit /auth to authorize');
+    return false;
+  }
+  
+  // Validate current tokens
+  try {
+    await getValidAccessToken();
+    console.log('✅ Current tokens are valid');
+    
+    // Schedule proactive refresh
+    scheduleNextRefresh();
+    
+    // Start health monitoring
+    startTokenHealthMonitoring();
+    
+    console.log('🚀 Enhanced token management initialized successfully');
+    return true;
+  } catch (error) {
+    console.error('❌ Token validation failed:', error.message);
+    
+    if (error.message.includes('invalid_grant')) {
+      console.log('🔑 Tokens expired - manual re-authorization required');
+      scheduleReauthorizationReminder();
+    }
+    
+    return false;
+  }
 }
 
 // Product synchronization functions
@@ -503,15 +761,22 @@ app.get('/callback', async (req, res) => {
     console.log('✅ Fresh tokens obtained from GHL OAuth');
     console.log(`🕒 Tokens valid until: ${new Date(tokenData.expires_at).toLocaleString()}`);
     
+    // Initialize enhanced token management with fresh tokens
+    console.log('🔧 Initializing enhanced token management with fresh tokens...');
+    await initializeTokenManagement();
+    
     res.send(`
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
         <h2 style="color: #28a745;">✅ GHL OAuth Successful!</h2>
         <p><strong>Tokens saved successfully.</strong></p>
         <p>🕒 <strong>Valid until:</strong> ${new Date(tokenData.expires_at).toLocaleString()}</p>
         <p>Your POS system will now automatically sync products from GoHighLevel every 5 minutes.</p>
-        <p>🔄 <strong>Automatic token refresh:</strong> Enabled</p>
+        <p>🔄 <strong>Automatic token refresh:</strong> ✅ Enabled</p>
+        <p>🏥 <strong>Token health monitoring:</strong> ✅ Active</p>
+        <p>📧 <strong>Expiry notifications:</strong> ✅ Configured</p>
         <hr style="margin: 20px 0;">
-        <p><small>You can close this window and return to your POS system.</small></p>
+        <p><small>You can close this window and return to your POS system. 
+        Tokens will automatically refresh before expiration!</small></p>
       </div>
     `);
     
@@ -531,6 +796,7 @@ app.get('/callback', async (req, res) => {
 });
 
 // Token status endpoint
+// Enhanced token status endpoint
 app.get('/tokens/status', (req, res) => {
   try {
     const tokens = getTokens();
@@ -540,12 +806,22 @@ app.get('/tokens/status', (req, res) => {
         status: 'missing',
         message: 'No tokens found',
         action: 'Visit /auth to authorize',
-        authUrl: '/auth'
+        authUrl: '/auth',
+        autoRefresh: {
+          enabled: false,
+          scheduled: false,
+          healthMonitoring: false
+        }
       });
     }
     
     const isExpired = isTokenExpired(tokens.access_token);
     const hasRefreshToken = !!tokens.refresh_token;
+    
+    // Check refresh token expiry
+    const refreshExpiryTime = getRefreshTokenExpiryTime();
+    const refreshDaysLeft = refreshExpiryTime ? 
+      Math.floor((refreshExpiryTime - Date.now()) / (24 * 60 * 60 * 1000)) : null;
     
     let status = 'valid';
     let message = 'Tokens are valid and ready';
@@ -559,6 +835,11 @@ app.get('/tokens/status', (req, res) => {
       status = 'refresh_needed';
       message = 'Access token expired but refresh token available';
       action = 'Automatic refresh will occur on next API call';
+    } else if (refreshDaysLeft !== null && refreshDaysLeft < 7) {
+      status = 'refresh_token_expiring';
+      message = `Refresh token expires in ${refreshDaysLeft} days`;
+      action = refreshDaysLeft < 1 ? 'Manual re-authorization required immediately' : 
+               'Consider re-authorizing soon to prevent service interruption';
     }
     
     const response = {
@@ -571,7 +852,15 @@ app.get('/tokens/status', (req, res) => {
         accessTokenExpired: isExpired,
         obtainedAt: tokens.obtained_at ? new Date(tokens.obtained_at).toLocaleString() : 'Unknown',
         expiresAt: tokens.expires_at ? new Date(tokens.expires_at).toLocaleString() : 'Unknown',
-        refreshedAt: tokens.refreshed_at ? new Date(tokens.refreshed_at).toLocaleString() : 'Never'
+        refreshedAt: tokens.refreshed_at ? new Date(tokens.refreshed_at).toLocaleString() : 'Never',
+        refreshTokenExpiresIn: refreshDaysLeft !== null ? `${refreshDaysLeft} days` : 'Unknown'
+      },
+      autoRefresh: {
+        enabled: !!tokenRefreshInterval,
+        scheduled: !!tokenRefreshInterval,
+        healthMonitoring: !!tokenHealthCheckInterval,
+        nextRefreshIn: tokenRefreshInterval ? 
+          Math.round(calculateRefreshSchedule() / 60000) + ' minutes' : 'Not scheduled'
       }
     };
     
@@ -2388,15 +2677,29 @@ app.put('/inventory/:id', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🟢 Backend listening on port ${PORT}`);
   console.log('🔧 Environment:', process.env.NODE_ENV || 'development');
   console.log('📍 GHL Location ID:', LOCATION_ID || 'Not configured');
   
-  // Initialize product synchronization
+  // Initialize enhanced token management first
   if (CLIENT_ID && CLIENT_SECRET && LOCATION_ID) {
-    console.log('🚀 Starting automatic product synchronization...');
-    startProductSync();
+    console.log('🔧 Initializing enhanced token management...');
+    const tokenManagementReady = await initializeTokenManagement();
+    
+    if (tokenManagementReady) {
+      console.log('🚀 Starting automatic product synchronization...');
+      startProductSync();
+    } else {
+      console.log('⚠️ Token management initialization failed');
+      console.log('👉 Visit http://localhost:5000/auth to authorize and enable auto-sync');
+      
+      // Still try to start basic sync (will handle token errors gracefully)
+      setTimeout(() => {
+        console.log('🔄 Attempting to start sync service anyway...');
+        startProductSync();
+      }, 5000);
+    }
   } else {
     console.log('⚠️ GHL credentials missing - sync service disabled');
     console.log('💡 Configure GHL_CLIENT_ID, GHL_CLIENT_SECRET, and GHL_LOCATION_ID to enable auto-sync');
@@ -2405,19 +2708,41 @@ app.listen(PORT, () => {
   // Graceful shutdown handling
   process.on('SIGINT', () => {
     console.log('\n🛑 Shutting down gracefully...');
+    
+    // Clean up intervals
     if (syncInterval) {
       clearInterval(syncInterval);
       console.log('✅ Sync service stopped');
     }
+    if (tokenRefreshInterval) {
+      clearTimeout(tokenRefreshInterval);
+      console.log('✅ Token refresh scheduler stopped');
+    }
+    if (tokenHealthCheckInterval) {
+      clearInterval(tokenHealthCheckInterval);
+      console.log('✅ Token health monitoring stopped');
+    }
+    
     process.exit(0);
   });
   
   process.on('SIGTERM', () => {
     console.log('\n🛑 Received SIGTERM, shutting down...');
+    
+    // Clean up intervals
     if (syncInterval) {
       clearInterval(syncInterval);
       console.log('✅ Sync service stopped');
     }
+    if (tokenRefreshInterval) {
+      clearTimeout(tokenRefreshInterval);
+      console.log('✅ Token refresh scheduler stopped');
+    }
+    if (tokenHealthCheckInterval) {
+      clearInterval(tokenHealthCheckInterval);
+      console.log('✅ Token health monitoring stopped');
+    }
+    
     process.exit(0);
   });
 });
