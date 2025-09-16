@@ -1437,34 +1437,6 @@ function App() {
     }
   };
 
-  const initializeFolders = async () => {
-    try {
-      console.log('🔄 Initializing default folders...');
-      const response = await axios.post(`${BACKEND_URL}/mongodb/folders/initialize`);
-      if (response.data.success) {
-        await loadFolders();
-        showAlert(`**Folders Initialized**\n\nCreated ${response.data.count} default folders.`, 'success');
-      }
-    } catch (error) {
-      console.error('Error initializing folders:', error);
-      showAlert(`**Failed to Initialize Folders**\n\n${error.response?.data?.error || error.message}`, 'error');
-    }
-  };
-
-  const syncProductsWithFolders = async () => {
-    try {
-      console.log('🔄 Syncing products with folders...');
-      const response = await axios.post(`${BACKEND_URL}/mongodb/folders/sync-products`);
-      if (response.data.success) {
-        await Promise.all([loadFolders(), refreshInventory()]);
-        showAlert(`**Products Synced**\n\nSynced ${response.data.syncedCount} out of ${response.data.totalProducts} products with folders.`, 'success');
-      }
-    } catch (error) {
-      console.error('Error syncing products with folders:', error);
-      showAlert(`**Failed to Sync Products**\n\n${error.response?.data?.error || error.message}`, 'error');
-    }
-  };
-
   const handleProductMove = async (productId, folderId) => {
     try {
       // Optimistically update the UI
