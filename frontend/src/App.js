@@ -573,13 +573,12 @@ function App() {
 
   // Dynamic backend URL for different environments
   const getBackendUrl = () => {
-    // Always use localhost:5000 for development
     console.log('NODE_ENV:', process.env.NODE_ENV);
     console.log('REACT_APP_BACKEND_URL:', process.env.REACT_APP_BACKEND_URL);
     console.log('Current hostname:', window.location.hostname);
     
-    // Force localhost for development - this should fix the connection issue
-    const backendUrl = 'http://localhost:5000';
+    // Use environment variable if available, otherwise fallback to localhost for development
+    const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
     console.log('Using backend URL:', backendUrl);
     return backendUrl;
   };
