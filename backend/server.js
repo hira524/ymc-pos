@@ -899,7 +899,9 @@ const Payment = mongoose.model('Payment', new mongoose.Schema({
 
 // Import Product Service and Model
 const ProductService = require('./services/ProductService');
+const FolderService = require('./services/FolderService');
 const Product = require('./models/Product');
+const Folder = require('./models/Folder');
 
 // Initialize MongoDB inventory
 async function initializeInventory() {
@@ -1868,6 +1870,51 @@ app.put('/mongodb/inventory/:id/quantity', async (req, res) => {
   }
 });
 
+// Move product to folder
+app.put('/mongodb/inventory/:id/move-folder', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { folderId } = req.body;
+    
+    console.log(`📁 MongoDB: Moving product ${id} to folder ${folderId}`);
+    
+    const product = await ProductService.getProductById(id);
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    // Get folder name if folderId is provided
+    let folderName = null;
+    if (folderId) {
+      const folder = await FolderService.getFolderById(folderId);
+      if (!folder) {
+        return res.status(404).json({ error: 'Folder not found' });
+      }
+      folderName = folder.name;
+    }
+    
+    // Update product folder assignment
+    const updatedProduct = await product.updateFolder(folderId, folderName);
+    
+    console.log(`📁 MongoDB: Product "${product.name}" moved to folder "${folderName || 'Unassigned'}"`);
+    
+    res.json({ 
+      success: true,
+      product: {
+        id: updatedProduct._id,
+        name: updatedProduct.name,
+        folderId: updatedProduct.folderId,
+        folderName: updatedProduct.folderName
+      },
+      message: `Successfully moved "${updatedProduct.name}" to folder "${folderName || 'Unassigned'}"` 
+    });
+    
+  } catch (error) {
+    console.error('MongoDB move product to folder error:', error);
+    res.status(500).json({ error: 'Failed to move product to folder' });
+  }
+});
+
 // Delete product (soft delete)
 app.delete('/mongodb/inventory/:id', async (req, res) => {
   try {
@@ -1992,6 +2039,331 @@ app.get('/mongodb/inventory/export', async (req, res) => {
     res.status(500).json({ error: 'Failed to export products from MongoDB' });
   }
 });
+
+// ==================== FOLDER MANAGEMENT ENDPOINTS ====================
+
+// Get all folders
+app.get('/mongodb/folders', async (req, res) => {
+  try {
+    console.log('📁 MongoDB: Getting all folders');
+    
+    const folders = await FolderService.getAllFolders();
+    
+    res.json({ 
+      success: true,
+      count: folders.length,
+      folders: folders.map(folder => ({
+        id: folder._id,
+        name: folder.name,
+        description: folder.description,
+        color: folder.color,
+        icon: folder.icon,
+        order: folder.order,
+        productCount: folder.productCount,
+        isDefault: folder.isDefault,
+        createdAt: folder.createdAt,
+        updatedAt: folder.updatedAt
+      }))
+    });
+    
+  } catch (error) {
+    console.error('MongoDB get folders error:', error);
+    res.status(500).json({ error: 'Failed to get folders from MongoDB' });
+  }
+});
+
+// Create new folder
+app.post('/mongodb/folders', async (req, res) => {
+  try {
+    const { name, description, color, icon } = req.body;
+    
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ 
+        error: 'Folder name is required and must be a non-empty string.' 
+      });
+    }
+    
+    console.log(`📁 MongoDB: Creating new folder: ${name.trim()}`);
+    
+    const folder = await FolderService.createFolder({
+      name: name.trim(),
+      description: description?.trim() || '',
+      color: color || '#667eea',
+      icon: icon || '📁'
+    });
+    
+    res.json({ 
+      success: true,
+      folder: {
+        id: folder._id,
+        name: folder.name,
+        description: folder.description,
+        color: folder.color,
+        icon: folder.icon,
+        order: folder.order,
+        productCount: folder.productCount,
+        isDefault: folder.isDefault
+      },
+      message: `Successfully created folder "${folder.name}"`
+    });
+    
+  } catch (error) {
+    console.error('MongoDB create folder error:', error);
+    if (error.message.includes('already exists')) {
+      res.status(400).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'Failed to create folder in MongoDB' });
+    }
+  }
+});
+
+// Update folder
+app.put('/mongodb/folders/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, color, icon, order } = req.body;
+    
+    console.log(`📁 MongoDB: Updating folder ${id}`);
+    
+    const updateData = {};
+    if (name !== undefined) updateData.name = name.trim();
+    if (description !== undefined) updateData.description = description.trim();
+    if (color !== undefined) updateData.color = color;
+    if (icon !== undefined) updateData.icon = icon;
+    if (order !== undefined) updateData.order = parseInt(order);
+    
+    const folder = await FolderService.updateFolder(id, updateData);
+    
+    res.json({ 
+      success: true,
+      folder: {
+        id: folder._id,
+        name: folder.name,
+        description: folder.description,
+        color: folder.color,
+        icon: folder.icon,
+        order: folder.order,
+        productCount: folder.productCount,
+        isDefault: folder.isDefault
+      },
+      message: `Successfully updated folder "${folder.name}"`
+    });
+    
+  } catch (error) {
+    console.error('MongoDB update folder error:', error);
+    if (error.message.includes('not found')) {
+      res.status(404).json({ error: error.message });
+    } else if (error.message.includes('already exists')) {
+      res.status(400).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'Failed to update folder in MongoDB' });
+    }
+  }
+});
+
+// Delete folder
+app.delete('/mongodb/folders/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { moveProducts, deleteProducts } = req.query;
+    
+    console.log(`📁 MongoDB: Deleting folder ${id}`);
+    console.log(`📁 Options: moveProducts=${moveProducts}, deleteProducts=${deleteProducts}`);
+    
+    let result;
+    
+    if (deleteProducts === 'true') {
+      // Delete folder and all products inside
+      console.log(`📁 Deleting folder and all products inside`);
+      result = await FolderService.deleteFolderAndProducts(id);
+    } else {
+      // Default behavior: delete folder only, move products to Unassigned
+      console.log(`📁 Deleting folder only, moving products to Unassigned`);
+      result = await FolderService.deleteFolder(id);
+    }
+    
+    res.json({ 
+      success: true,
+      message: result.message,
+      deletedProductsCount: result.deletedProductsCount || 0,
+      movedProductsCount: result.movedProductsCount || 0
+    });
+    
+  } catch (error) {
+    console.error('MongoDB delete folder error:', error);
+    if (error.message.includes('not found')) {
+      res.status(404).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'Failed to delete folder from MongoDB' });
+    }
+  }
+});
+
+// Reorder folders
+app.put('/mongodb/folders/reorder', async (req, res) => {
+  try {
+    const { folderIds } = req.body;
+    
+    if (!Array.isArray(folderIds)) {
+      return res.status(400).json({ error: 'folderIds must be an array' });
+    }
+    
+    console.log(`📁 MongoDB: Reordering ${folderIds.length} folders`);
+    
+    const folders = await FolderService.reorderFolders(folderIds);
+    
+    res.json({ 
+      success: true,
+      count: folders.length,
+      folders: folders.map(folder => ({
+        id: folder._id,
+        name: folder.name,
+        order: folder.order
+      })),
+      message: `Successfully reordered ${folderIds.length} folders`
+    });
+    
+  } catch (error) {
+    console.error('MongoDB reorder folders error:', error);
+    res.status(500).json({ error: 'Failed to reorder folders in MongoDB' });
+  }
+});
+
+// Get folder statistics
+app.get('/mongodb/folders/stats', async (req, res) => {
+  try {
+    console.log('📁 MongoDB: Getting folder statistics');
+    
+    const stats = await FolderService.getFolderStats();
+    
+    res.json({ 
+      success: true,
+      stats
+    });
+    
+  } catch (error) {
+    console.error('MongoDB get folder stats error:', error);
+    res.status(500).json({ error: 'Failed to get folder statistics from MongoDB' });
+  }
+});
+
+// Move product to folder
+app.put('/mongodb/products/:productId/folder', async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const { folderId } = req.body;
+    
+    if (!folderId) {
+      return res.status(400).json({ error: 'folderId is required' });
+    }
+    
+    console.log(`📦 MongoDB: Moving product ${productId} to folder ${folderId}`);
+    
+    const product = await FolderService.moveProductToFolder(productId, folderId);
+    
+    res.json({ 
+      success: true,
+      product: {
+        id: product.productId,
+        name: product.name,
+        folderId: product.folderId,
+        folderName: product.folderName
+      },
+      message: `Successfully moved product "${product.name}" to folder "${product.folderName}"`
+    });
+    
+  } catch (error) {
+    console.error('MongoDB move product to folder error:', error);
+    if (error.message.includes('not found')) {
+      res.status(404).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'Failed to move product to folder in MongoDB' });
+    }
+  }
+});
+
+// Get products by folder
+app.get('/mongodb/folders/:folderId/products', async (req, res) => {
+  try {
+    const { folderId } = req.params;
+    
+    console.log(`📦 MongoDB: Getting products for folder ${folderId}`);
+    
+    const products = await FolderService.getProductsByFolder(folderId);
+    
+    const results = products.map(product => ({
+      id: product.productId,
+      name: product.name,
+      price: product.price,
+      quantity: product.quantity,
+      priceId: product.priceId,
+      description: product.description,
+      category: product.category,
+      folderId: product.folderId,
+      folderName: product.folderName,
+      _id: product._id
+    }));
+    
+    res.json({ 
+      success: true,
+      folderId,
+      count: results.length,
+      products: results
+    });
+    
+  } catch (error) {
+    console.error('MongoDB get products by folder error:', error);
+    res.status(500).json({ error: 'Failed to get products by folder from MongoDB' });
+  }
+});
+
+// Initialize default folders
+app.post('/mongodb/folders/initialize', async (req, res) => {
+  try {
+    console.log('📁 MongoDB: Initializing default folders');
+    
+    const folders = await FolderService.initializeDefaultFolders();
+    
+    res.json({ 
+      success: true,
+      count: folders.length,
+      folders: folders.map(folder => ({
+        id: folder._id,
+        name: folder.name,
+        description: folder.description,
+        color: folder.color,
+        icon: folder.icon
+      })),
+      message: `Successfully initialized ${folders.length} default folders`
+    });
+    
+  } catch (error) {
+    console.error('MongoDB initialize folders error:', error);
+    res.status(500).json({ error: 'Failed to initialize default folders in MongoDB' });
+  }
+});
+
+// Sync products with folders
+app.post('/mongodb/folders/sync-products', async (req, res) => {
+  try {
+    console.log('📁 MongoDB: Syncing products with folders');
+    
+    const result = await FolderService.syncProductsWithFolders();
+    
+    res.json({ 
+      success: true,
+      syncedCount: result.syncedCount,
+      totalProducts: result.totalProducts,
+      message: `Successfully synced ${result.syncedCount} products with folders`
+    });
+    
+  } catch (error) {
+    console.error('MongoDB sync products with folders error:', error);
+    res.status(500).json({ error: 'Failed to sync products with folders in MongoDB' });
+  }
+});
+
+// ==================== END FOLDER MANAGEMENT ENDPOINTS ====================
 
 // Initialize/Reset MongoDB inventory with default products
 app.post('/mongodb/inventory/initialize', async (req, res) => {

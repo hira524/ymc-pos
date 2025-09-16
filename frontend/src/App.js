@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { loadStripeTerminal } from '@stripe/terminal-js';
 import ThemeToggle from './ThemeToggle';
+import FolderManager from './components/FolderManager';
+import FolderCRUDModal from './components/FolderCRUDModal';
+import ProductFolderView from './components/ProductFolderView';
 import './App.css';
 import './components.css';
 import './themes.css';
@@ -507,6 +510,13 @@ const CashCalculatorPopup = ({ isVisible, orderTotal, onComplete, onCancel }) =>
 
 function App() {
   const [inventory, setInventory] = useState([]);
+  const [folders, setFolders] = useState([]);
+  const [showFolderManager, setShowFolderManager] = useState(false);
+  const [showFolderCRUD, setShowFolderCRUD] = useState(false);
+  const [folderCRUDAction, setFolderCRUDAction] = useState('create'); // 'create', 'edit', 'list'
+  const [selectedFolder, setSelectedFolder] = useState(null);
+  const [folderViewMode, setFolderViewMode] = useState(false);
+  const [customerFolderView, setCustomerFolderView] = useState(false);
   const [search, setSearch] = useState('');
   const [cart, setCart] = useState([]);
   const [total, setTotal] = useState(0);
@@ -534,7 +544,9 @@ function App() {
     name: '',
     price: '',
     quantity: '',
-    description: ''
+    description: '',
+    folderId: null,
+    folderName: null
   });
   const [showDeleteMode, setShowDeleteMode] = useState(false);
 
@@ -561,20 +573,15 @@ function App() {
 
   // Dynamic backend URL for different environments
   const getBackendUrl = () => {
-    // Local development - use port 5000 where our backend is running
-    if (window.location.hostname === 'localhost' || 
-        window.location.hostname === '127.0.0.1') {
-      return process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
-    }
+    // Always use localhost:5000 for development
+    console.log('NODE_ENV:', process.env.NODE_ENV);
+    console.log('REACT_APP_BACKEND_URL:', process.env.REACT_APP_BACKEND_URL);
+    console.log('Current hostname:', window.location.hostname);
     
-    // Codespaces environment
-    if (window.location.hostname.includes('github.dev')) {
-      const baseUrl = window.location.origin.replace('-3000.', '-5000.');
-      return baseUrl;
-    }
-    
-    // Production environment (Netlify + Heroku)
-    return process.env.REACT_APP_BACKEND_URL || 'https://ymc-pos-backend-a6db766d7240.herokuapp.com';
+    // Force localhost for development - this should fix the connection issue
+    const backendUrl = 'http://localhost:5000';
+    console.log('Using backend URL:', backendUrl);
+    return backendUrl;
   };
 
   const BACKEND_URL = getBackendUrl();
@@ -716,7 +723,10 @@ function App() {
         showAlert(`**Inventory Loading Failed**\n\nUnable to load product catalog from server.\n\n**Error Details:**\n${e.response?.data?.error || e.message}\n\n**Troubleshooting:**\n• Check server connection\n• Verify backend is running\n• Contact system administrator\n\n*POS system may not function properly without inventory.*`, 'error');
       });
 
-    // 3) Check sync status
+    // 3) Load folders from MongoDB
+    loadFolders();
+
+    // 4) Check sync status
     checkSyncStatus();
   }, [BACKEND_URL]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1129,6 +1139,19 @@ function App() {
     });
   };
 
+  // Folder CRUD Functions
+  const openFolderCRUD = (action, folder = null) => {
+    setFolderCRUDAction(action);
+    setSelectedFolder(folder);
+    setShowFolderCRUD(true);
+  };
+
+  const closeFolderCRUD = () => {
+    setShowFolderCRUD(false);
+    setFolderCRUDAction('create');
+    setSelectedFolder(null);
+  };
+
   const openInventoryManager = (action, item = null) => {
     setInventoryAction(action);
     setSelectedItem(item);
@@ -1139,14 +1162,18 @@ function App() {
         name: item.name || '',
         price: item.price || '',
         quantity: item.quantity || '',
-        description: item.description || ''
+        description: item.description || '',
+        folderId: item.folderId || null,
+        folderName: item.folderName || null
       });
     } else {
       setNewProduct({
         name: '',
         price: '',
         quantity: '',
-        description: ''
+        description: '',
+        folderId: null,
+        folderName: null
       });
     }
   };
@@ -1175,7 +1202,9 @@ function App() {
         quantity: parseInt(newProduct.quantity),
         description: newProduct.description.trim(),
         category: 'Custom',
-        isManual: true
+        isManual: true,
+        folderId: newProduct.folderId || null,
+        folderName: newProduct.folderName || null
       };
 
       const response = await axios.post(`${BACKEND_URL}/mongodb/inventory/add-product`, productData);
@@ -1191,10 +1220,12 @@ function App() {
           name: '',
           price: '',
           quantity: '',
-          description: ''
+          description: '',
+          folderId: null,
+          folderName: null
         });
         
-        showAlert(`**Product Added**\n\n${productFromServer.name} has been added to inventory.`, 'success');
+        showAlert(`**Product Added**\n\n${productFromServer.name} has been added to inventory${productFromServer.folderName ? ` in the "${productFromServer.folderName}" folder` : ''}.`, 'success');
         openInventoryManager('view');
       } else {
         throw new Error('Invalid product data received from server');
@@ -1232,7 +1263,9 @@ function App() {
         name: newProduct.name.trim(),
         price: parseFloat(newProduct.price),
         quantity: parseInt(newProduct.quantity),
-        description: newProduct.description.trim()
+        description: newProduct.description.trim(),
+        folderId: newProduct.folderId || null,
+        folderName: newProduct.folderName || null
       };
 
       const response = await axios.put(`${BACKEND_URL}/mongodb/inventory/${selectedItem._id}`, productData);
@@ -1245,7 +1278,7 @@ function App() {
           item._id === selectedItem._id ? productFromServer : item
         ));
         
-        showAlert(`**Product Updated**\n\n${productFromServer.name} has been updated.`, 'success');
+        showAlert(`**Product Updated**\n\n${productFromServer.name} has been updated${productFromServer.folderName ? ` and moved to the "${productFromServer.folderName}" folder` : ''}.`, 'success');
         openInventoryManager('view');
       } else {
         throw new Error('Invalid product data received from server');
@@ -1387,6 +1420,79 @@ function App() {
     } catch (error) {
       console.error('Failed to check MongoDB sync status:', error);
     }
+  };
+
+  // Folder Management Functions
+  const loadFolders = async () => {
+    try {
+      console.log('🔄 Loading folders from MongoDB...');
+      const response = await axios.get(`${BACKEND_URL}/mongodb/folders`);
+      if (response.data.success) {
+        setFolders(response.data.folders);
+        console.log(`✅ Loaded ${response.data.folders.length} folders`);
+      }
+    } catch (error) {
+      console.error('Error loading folders:', error);
+      showAlert(`**Failed to Load Folders**\n\n${error.response?.data?.error || error.message}`, 'error');
+    }
+  };
+
+  const initializeFolders = async () => {
+    try {
+      console.log('🔄 Initializing default folders...');
+      const response = await axios.post(`${BACKEND_URL}/mongodb/folders/initialize`);
+      if (response.data.success) {
+        await loadFolders();
+        showAlert(`**Folders Initialized**\n\nCreated ${response.data.count} default folders.`, 'success');
+      }
+    } catch (error) {
+      console.error('Error initializing folders:', error);
+      showAlert(`**Failed to Initialize Folders**\n\n${error.response?.data?.error || error.message}`, 'error');
+    }
+  };
+
+  const syncProductsWithFolders = async () => {
+    try {
+      console.log('🔄 Syncing products with folders...');
+      const response = await axios.post(`${BACKEND_URL}/mongodb/folders/sync-products`);
+      if (response.data.success) {
+        await Promise.all([loadFolders(), refreshInventory()]);
+        showAlert(`**Products Synced**\n\nSynced ${response.data.syncedCount} out of ${response.data.totalProducts} products with folders.`, 'success');
+      }
+    } catch (error) {
+      console.error('Error syncing products with folders:', error);
+      showAlert(`**Failed to Sync Products**\n\n${error.response?.data?.error || error.message}`, 'error');
+    }
+  };
+
+  const handleProductMove = async (productId, folderId) => {
+    try {
+      // Optimistically update the UI
+      setInventory(prev => prev.map(product => 
+        product._id === productId || product.id === productId
+          ? { 
+              ...product, 
+              folderId: folderId,
+              folderName: folders.find(f => f.id === folderId)?.name || ''
+            }
+          : product
+      ));
+      
+      // Update folder product counts
+      await loadFolders();
+      
+      showAlert(`**Product Moved**\n\nProduct successfully moved to new folder.`, 'success');
+    } catch (error) {
+      console.error('Error handling product move:', error);
+      // Revert the optimistic update
+      await refreshInventory();
+      showAlert(`**Failed to Move Product**\n\n${error.message}`, 'error');
+    }
+  };
+
+  const handleFolderUpdated = () => {
+    // Refresh both folders and inventory when folders are updated
+    Promise.all([loadFolders(), refreshInventory()]);
   };
 
   // Other Product Calculator Functions
@@ -1930,53 +2036,92 @@ function App() {
 
           {/* Products Section */}
           <section className="products-section animate-fade-in animate-delay-200">
-            <h2 className="products-title">
-              Products 
-              <span className="products-count animate-pulse">{filtered.length}</span>
-            </h2>
-            <div className="products">
-              {filtered.map((i, index) => (
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              marginBottom: 'var(--spacing-3)'
+            }}>
+              <h2 className="products-title">
+                Products 
+                <span className="products-count animate-pulse">{filtered.length}</span>
+              </h2>
+              <button
+                className={customerFolderView ? "btn-primary" : "btn-secondary"}
+                onClick={() => setCustomerFolderView(!customerFolderView)}
+                style={{ 
+                  fontSize: 'var(--font-size-sm)',
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  transition: 'all 0.2s ease'
+                }}
+                title="Toggle folder view"
+              >
+                {customerFolderView ? '📋 Grid View' : '📁 Folder View'}
+              </button>
+            </div>
+            
+            {customerFolderView ? (
+              <ProductFolderView
+                products={filtered}
+                folders={folders}
+                onProductUpdate={(action, product) => {
+                  if (action === 'click') {
+                    addToCartWithDiscount(product);
+                  }
+                }}
+                onMoveProduct={handleProductMove}
+                backendUrl={BACKEND_URL}
+                isInventoryMode={false}
+                showOtherProduct={true}
+                onOtherProductClick={openOtherProductCalculator}
+              />
+            ) : (
+              <div className="products">
+                {filtered.map((i, index) => (
+                  <div 
+                    key={i.id} 
+                    className={`product hover-lift transition-all animate-slide-in-up animate-delay-${Math.min(index * 100, 1000)}`}
+                    onClick={() => addToCartWithDiscount(i)}
+                  >
+                    <h3 className="product-name">{i.name}</h3>
+                    <div className="product-price">${i.price.toFixed(2)}</div>
+                    <div className="product-stock">
+                      <span className={`stock-indicator ${
+                        i.quantity > 15 ? 'stock-high' : 
+                        i.quantity > 5 ? 'stock-medium' : 'stock-low'
+                      }`}></span>
+                      Stock: {i.quantity}
+                    </div>
+                  </div>
+                ))}
+                
+                {/* Other Product Option */}
                 <div 
-                  key={i.id} 
-                  className={`product hover-lift transition-all animate-slide-in-up animate-delay-${Math.min(index * 100, 1000)}`}
-                  onClick={() => addToCartWithDiscount(i)}
+                  className="product hover-lift transition-all other-product"
+                  onClick={openOtherProductCalculator}
+                  style={{
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    border: '2px dashed rgba(255, 255, 255, 0.3)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    textAlign: 'center',
+                    minHeight: '120px'
+                  }}
                 >
-                  <h3 className="product-name">{i.name}</h3>
-                  <div className="product-price">${i.price.toFixed(2)}</div>
-                  <div className="product-stock">
-                    <span className={`stock-indicator ${
-                      i.quantity > 15 ? 'stock-high' : 
-                      i.quantity > 5 ? 'stock-medium' : 'stock-low'
-                    }`}></span>
-                    Stock: {i.quantity}
+                  <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🧮</div>
+                  <h3 className="product-name">Other Product</h3>
+                  <div className="product-price">Custom Amount</div>
+                  <div style={{ fontSize: 'var(--font-size-sm)', opacity: 0.9, marginTop: '4px' }}>
+                    Click to enter custom amount
                   </div>
                 </div>
-              ))}
-              
-              {/* Other Product Option */}
-              <div 
-                className="product hover-lift transition-all other-product"
-                onClick={openOtherProductCalculator}
-                style={{
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  color: 'white',
-                  border: '2px dashed rgba(255, 255, 255, 0.3)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  textAlign: 'center',
-                  minHeight: '120px'
-                }}
-              >
-                <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🧮</div>
-                <h3 className="product-name">Other Product</h3>
-                <div className="product-price">Custom Amount</div>
-                <div style={{ fontSize: 'var(--font-size-sm)', opacity: 0.9, marginTop: '4px' }}>
-                  Click to enter custom amount
-                </div>
               </div>
-            </div>
+            )}
           </section>
         </div>
 
@@ -2361,6 +2506,39 @@ function App() {
                         {showDeleteMode ? '🔒 Safe Mode' : '🗑️ Delete Mode'}
                       </button>
                       <button
+                        className={folderViewMode ? "btn-primary" : "btn-secondary"}
+                        onClick={() => setFolderViewMode(!folderViewMode)}
+                        style={{ 
+                          fontSize: 'var(--font-size-sm)',
+                          padding: '8px 16px'
+                        }}
+                        title="Toggle folder view"
+                      >
+                        {folderViewMode ? '📋 List View' : '📁 Folder View'}
+                      </button>
+                      <button
+                        className="btn-primary"
+                        onClick={() => openFolderCRUD('create')}
+                        style={{ 
+                          fontSize: 'var(--font-size-sm)',
+                          padding: '8px 16px'
+                        }}
+                        title="Create a new folder"
+                      >
+                        📁➕ Create Folder
+                      </button>
+                      <button
+                        className="btn-secondary"
+                        onClick={() => openFolderCRUD('list')}
+                        style={{ 
+                          fontSize: 'var(--font-size-sm)',
+                          padding: '8px 16px'
+                        }}
+                        title="Manage all folders with CRUD operations"
+                      >
+                        🗂️📝 All Folders
+                      </button>
+                      <button
                         className="btn-success"
                         onClick={() => openInventoryManager('add')}
                         style={{ 
@@ -2428,113 +2606,140 @@ function App() {
                     </div>
                   )}
                   
-                  <div style={{ 
-                    display: 'grid', 
-                    gap: 'var(--spacing-3)',
-                    maxHeight: '400px',
-                    overflowY: 'auto'
-                  }}>
-                    {inventory.map((item) => (
-                      <div key={item._id || item.id} style={{
-                        border: '2px solid var(--border-color)',
-                        borderRadius: 'var(--border-radius)',
-                        padding: 'var(--spacing-3)',
-                        background: 'var(--card-background)',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        transition: 'all 0.2s ease'
-                      }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '8px',
-                            marginBottom: '4px' 
-                          }}>
-                            <div style={{ fontWeight: '600' }}>{item.name}</div>
-                            {item.category && (
-                              <span style={{
-                                background: 'var(--primary-color)',
-                                color: 'white',
-                                fontSize: '10px',
-                                padding: '2px 6px',
-                                borderRadius: '12px',
-                                fontWeight: '500'
-                              }}>
-                                {item.category}
-                              </span>
-                            )}
-                            {item.isManual && (
-                              <span style={{
-                                background: '#28a745',
-                                color: 'white',
-                                fontSize: '10px',
-                                padding: '2px 6px',
-                                borderRadius: '12px',
-                                fontWeight: '500'
-                              }}>
-                                CUSTOM
-                              </span>
-                            )}
+                  {folderViewMode ? (
+                    <ProductFolderView
+                      products={inventory}
+                      folders={folders}
+                      onProductUpdate={(action, product) => {
+                        if (action === 'edit') {
+                          openInventoryManager('edit', product);
+                        }
+                      }}
+                      onMoveProduct={handleProductMove}
+                      backendUrl={BACKEND_URL}
+                      isInventoryMode={true}
+                    />
+                  ) : (
+                    <div style={{ 
+                      display: 'grid', 
+                      gap: 'var(--spacing-3)',
+                      maxHeight: '400px',
+                      overflowY: 'auto'
+                    }}>
+                      {inventory.map((item) => (
+                        <div key={item._id || item.id} style={{
+                          border: '2px solid var(--border-color)',
+                          borderRadius: 'var(--border-radius)',
+                          padding: 'var(--spacing-3)',
+                          background: 'var(--card-background)',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          transition: 'all 0.2s ease'
+                        }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '8px',
+                              marginBottom: '4px' 
+                            }}>
+                              <div style={{ fontWeight: '600' }}>{item.name}</div>
+                              {item.category && (
+                                <span style={{
+                                  background: 'var(--primary-color)',
+                                  color: 'white',
+                                  fontSize: '10px',
+                                  padding: '2px 6px',
+                                  borderRadius: '12px',
+                                  fontWeight: '500'
+                                }}>
+                                  {item.category}
+                                </span>
+                              )}
+                              {item.folderName && (
+                                <span style={{
+                                  background: folders.find(f => f.name === item.folderName)?.color || '#6c757d',
+                                  color: 'white',
+                                  fontSize: '10px',
+                                  padding: '2px 6px',
+                                  borderRadius: '12px',
+                                  fontWeight: '500'
+                                }}>
+                                  📁 {item.folderName}
+                                </span>
+                              )}
+                              {item.isManual && (
+                                <span style={{
+                                  background: '#28a745',
+                                  color: 'white',
+                                  fontSize: '10px',
+                                  padding: '2px 6px',
+                                  borderRadius: '12px',
+                                  fontWeight: '500'
+                                }}>
+                                  CUSTOM
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
+                              ${item.price.toFixed(2)} • Stock: {item.quantity} units
+                              {item.description && (
+                                <span style={{ marginLeft: '8px', fontStyle: 'italic' }}>
+                                  • {item.description.substring(0, 50)}{item.description.length > 50 ? '...' : ''}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
-                            ${item.price.toFixed(2)} • Stock: {item.quantity} units
-                            {item.description && (
-                              <span style={{ marginLeft: '8px', fontStyle: 'italic' }}>
-                                • {item.description.substring(0, 50)}{item.description.length > 50 ? '...' : ''}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          <input
-                            type="number"
-                            min="0"
-                            defaultValue={item.quantity}
-                            style={{
-                              width: '70px',
-                              padding: '4px 8px',
-                              border: '1px solid var(--border-color)',
-                              borderRadius: '4px',
-                              fontSize: 'var(--font-size-sm)'
-                            }}
-                            onBlur={(e) => {
-                              const newQty = parseInt(e.target.value) || 0;
-                              if (newQty !== item.quantity) {
-                                updateProductQuantity(item.id, newQty);
-                              }
-                            }}
-                          />
-                          <button
-                            className="btn-primary"
-                            onClick={() => openInventoryManager('edit', item)}
-                            style={{ 
-                              fontSize: 'var(--font-size-xs)',
-                              padding: '6px 12px',
-                              minWidth: 'auto'
-                            }}
-                          >
-                            ✏️
-                          </button>
-                          {showDeleteMode && (
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <input
+                              type="number"
+                              min="0"
+                              defaultValue={item.quantity}
+                              style={{
+                                width: '70px',
+                                padding: '4px 8px',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '4px',
+                                fontSize: 'var(--font-size-sm)'
+                              }}
+                              onBlur={(e) => {
+                                const newQty = parseInt(e.target.value) || 0;
+                                if (newQty !== item.quantity) {
+                                  updateProductQuantity(item.id, newQty);
+                                }
+                              }}
+                            />
                             <button
-                              className="btn-danger"
-                              onClick={() => deleteProduct(item._id || item.id, item.name)}
+                              className="btn-primary"
+                              onClick={() => openInventoryManager('edit', item)}
                               style={{ 
                                 fontSize: 'var(--font-size-xs)',
                                 padding: '6px 12px',
                                 minWidth: 'auto'
                               }}
-                              title="Delete this product"
                             >
-                              🗑️
+                              ✏️
                             </button>
-                          )}
+                            {showDeleteMode && (
+                              <button
+                                className="btn-danger"
+                                onClick={() => deleteProduct(item._id || item.id, item.name)}
+                                style={{ 
+                                  fontSize: 'var(--font-size-xs)',
+                                  padding: '6px 12px',
+                                  minWidth: 'auto'
+                                }}
+                                title="Delete this product"
+                              >
+                                🗑️
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -2650,6 +2855,54 @@ function App() {
                         }}
                       />
                     </div>
+                    
+                    <div>
+                      <label style={{ 
+                        display: 'block', 
+                        marginBottom: '8px', 
+                        fontWeight: '600',
+                        color: 'var(--text-color)'
+                      }}>
+                        📁 Folder Assignment
+                      </label>
+                      <select
+                        value={newProduct.folderId || ''}
+                        onChange={(e) => {
+                          const selectedFolderId = e.target.value;
+                          const selectedFolder = folders.find(f => f.id === selectedFolderId);
+                          setNewProduct(prev => ({
+                            ...prev, 
+                            folderId: selectedFolderId || null,
+                            folderName: selectedFolder?.name || null
+                          }));
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          border: '2px solid var(--border-color)',
+                          borderRadius: '8px',
+                          fontSize: 'var(--font-size-base)',
+                          boxSizing: 'border-box',
+                          backgroundColor: 'var(--card-background)',
+                          color: 'var(--text-color)'
+                        }}
+                      >
+                        <option value="">📦 No Folder (Unassigned)</option>
+                        {folders.map(folder => (
+                          <option key={folder.id} value={folder.id}>
+                            {folder.icon} {folder.name}
+                          </option>
+                        ))}
+                      </select>
+                      <div style={{ 
+                        fontSize: 'var(--font-size-sm)', 
+                        color: 'var(--text-secondary)',
+                        marginTop: '4px',
+                        fontStyle: 'italic'
+                      }}>
+                        Choose a folder to organize this product, or leave unassigned
+                      </div>
+                    </div>
                   </div>
 
                   <div style={{ 
@@ -2696,6 +2949,77 @@ function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Folder Manager Modal */}
+      {showFolderManager && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'var(--card-background)',
+            padding: 'var(--spacing-4)',
+            borderRadius: 'var(--border-radius)',
+            width: '90%',
+            maxWidth: '800px',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            border: '2px solid var(--border-color)'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 'var(--spacing-3)',
+              paddingBottom: 'var(--spacing-2)',
+              borderBottom: '1px solid var(--border-color)'
+            }}>
+              <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>
+                📁 Manage Product Folders
+              </h3>
+              <button
+                onClick={() => setShowFolderManager(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '20px',
+                  cursor: 'pointer',
+                  color: 'var(--text-secondary)'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <FolderManager
+              backendUrl={BACKEND_URL}
+              onFolderUpdated={handleFolderUpdated}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Folder CRUD Modal */}
+      {showFolderCRUD && (
+        <FolderCRUDModal
+          action={folderCRUDAction}
+          folder={selectedFolder}
+          folders={folders}
+          backendUrl={BACKEND_URL}
+          onClose={closeFolderCRUD}
+          onFolderUpdated={handleFolderUpdated}
+          onOpenFolderCRUD={openFolderCRUD}
+          showAlert={showAlert}
+          showConfirmDialog={showConfirmDialog}
+        />
       )}
 
       {/* Other Product Calculator Popup */}

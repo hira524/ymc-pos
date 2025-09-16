@@ -57,6 +57,15 @@ const productSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  folderId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Folder',
+    required: false
+  },
+  folderName: {
+    type: String,
+    trim: true
+  },
   sku: {
     type: String,
     trim: true
@@ -82,6 +91,9 @@ productSchema.index({ name: 1 });
 productSchema.index({ productId: 1 });
 productSchema.index({ isActive: 1 });
 productSchema.index({ source: 1 });
+productSchema.index({ folderId: 1 });
+productSchema.index({ category: 1 });
+productSchema.index({ folderName: 1 });
 
 // Pre-save middleware to update the updatedAt field
 productSchema.pre('save', function(next) {
@@ -112,6 +124,24 @@ productSchema.statics.findActive = function() {
 // Static method to find products by source
 productSchema.statics.findBySource = function(source) {
   return this.find({ source: source, isActive: true }).sort({ name: 1 });
+};
+
+// Static method to find products by folder
+productSchema.statics.findByFolder = function(folderId) {
+  return this.find({ folderId: folderId, isActive: true }).sort({ name: 1 });
+};
+
+// Static method to find products by folder name
+productSchema.statics.findByFolderName = function(folderName) {
+  return this.find({ folderName: folderName, isActive: true }).sort({ name: 1 });
+};
+
+// Instance method to update folder assignment
+productSchema.methods.updateFolder = async function(folderId, folderName) {
+  this.folderId = folderId;
+  this.folderName = folderName;
+  this.updatedAt = new Date();
+  return this.save();
 };
 
 // Virtual for formatted price

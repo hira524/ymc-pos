@@ -1,4 +1,5 @@
 const Product = require('../models/Product');
+const FolderService = require('./FolderService');
 
 class ProductService {
   
@@ -217,7 +218,9 @@ class ProductService {
         productId: productData.productId || `mongodb-product-${timestamp}-${randomSuffix}`,
         priceId: productData.priceId || `mongodb-price-${timestamp}-${randomSuffix}`,
         sku: productData.sku || productData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
-        source: 'mongodb'
+        source: 'mongodb',
+        folderId: productData.folderId || null,
+        folderName: productData.folderName || null
       });
 
       return await product.save();
@@ -386,10 +389,297 @@ class ProductService {
         sku: product.sku,
         productType: product.productType,
         source: product.source,
-        lastSynced: product.lastSynced
+        lastSynced: product.lastSynced,
+        folderId: product.folderId,
+        folderName: product.folderName
       }));
     } catch (error) {
       console.error('Error exporting products:', error);
+      throw error;
+    }
+  }
+
+  // =======================
+  // FOLDER-AWARE METHODS
+  // =======================
+
+  // Get products by folder
+  static async getProductsByFolder(folderId) {
+    try {
+      return await Product.findByFolder(folderId);
+    } catch (error) {
+      console.error('Error fetching products by folder:', error);
+      throw error;
+    }
+  }
+
+  // Get products by folder name
+  static async getProductsByFolderName(folderName) {
+    try {
+      return await Product.findByFolderName(folderName);
+    } catch (error) {
+      console.error('Error fetching products by folder name:', error);
+      throw error;
+    }
+  }
+
+  // Move product to folder
+  static async moveProductToFolder(productId, folderId) {
+    try {
+      const product = await this.getProductById(productId);
+      if (!product) {
+        throw new Error('Product not found');
+      }
+
+      // Get folder details if folderId is provided
+      let folderName = null;
+      if (folderId) {
+        const folder = await FolderService.getFolderById(folderId);
+        if (!folder) {
+          throw new Error('Folder not found');
+        }
+        folderName = folder.name;
+      }
+
+      // Update product folder
+      const updatedProduct = await product.updateFolder(folderId, folderName);
+
+      // Update folder product counts
+      if (product.folderId) {
+        await FolderService.updateProductCount(product.folderId);
+      }
+      if (folderId) {
+        await FolderService.updateProductCount(folderId);
+      }
+
+      return updatedProduct;
+    } catch (error) {
+      console.error('Error moving product to folder:', error);
+      throw error;
+    }
+  }
+
+  // Create product with folder assignment
+  static async createProductWithFolder(productData, folderId = null) {
+    try {
+      let folderName = null;
+      if (folderId) {
+        const folder = await FolderService.getFolderById(folderId);
+        if (!folder) {
+          throw new Error('Folder not found');
+        }
+        folderName = folder.name;
+      }
+
+      const productDataWithFolder = {
+        ...productData,
+        folderId,
+        folderName
+      };
+
+      const product = await this.createProduct(productDataWithFolder);
+
+      // Update folder product count
+      if (folderId) {
+        await FolderService.updateProductCount(folderId);
+      }
+
+      return product;
+    } catch (error) {
+      console.error('Error creating product with folder:', error);
+      throw error;
+    }
+  }
+
+  // Update product with folder reassignment
+  static async updateProductWithFolder(id, updateData, folderId = null) {
+    try {
+      const product = await this.getProductById(id);
+      if (!product) {
+        throw new Error('Product not found');
+      }
+
+      const oldFolderId = product.folderId;
+      let folderName = null;
+
+      if (folderId) {
+        const folder = await FolderService.getFolderById(folderId);
+        if (!folder) {
+          throw new Error('Folder not found');
+        }
+        folderName = folder.name;
+      }
+
+      const updateDataWithFolder = {
+        ...updateData,
+        folderId,
+        folderName
+      };
+
+      const updatedProduct = await this.updateProduct(id, updateDataWithFolder);
+
+      // Update folder product counts if folder changed
+      if (oldFolderId !== folderId) {
+        if (oldFolderId) {
+          await FolderService.updateProductCount(oldFolderId);
+        }
+        if (folderId) {
+          await FolderService.updateProductCount(folderId);
+        }
+      }
+
+      return updatedProduct;
+    } catch (error) {
+      console.error('Error updating product with folder:', error);
+      throw error;
+    }
+  }
+
+  // Auto-assign products to folders based on category
+  static async autoAssignProductsToFolders() {
+    try {
+      const products = await Product.findActive();
+      const folders = await FolderService.getAllFolders();
+      
+      const assignments = [];
+
+      for (const product of products) {
+        if (product.folderId) continue; // Skip already assigned products
+
+        // Try to match category with folder name (case-insensitive)
+        const matchingFolder = folders.find(folder => 
+          folder.name.toLowerCase() === product.category?.toLowerCase()
+        );
+
+        if (matchingFolder) {
+          await product.updateFolder(matchingFolder.id, matchingFolder.name);
+          assignments.push({
+            productId: product._id,
+            productName: product.name,
+            folderId: matchingFolder.id,
+            folderName: matchingFolder.name
+          });
+        }
+      }
+
+      // Update all folder product counts
+      for (const folder of folders) {
+        await folder.updateProductCount();
+      }
+
+      return assignments;
+    } catch (error) {
+      console.error('Error auto-assigning products to folders:', error);
+      throw error;
+    }
+  }
+
+  // Get organized products by folder
+  static async getOrganizedProducts() {
+    try {
+      const products = await Product.findActive();
+      const folders = await FolderService.getAllFolders();
+      
+      const organized = {};
+
+      // Initialize folders
+      folders.forEach(folder => {
+        organized[folder.id] = {
+          folder,
+          products: []
+        };
+      });
+
+      // Check if there's already an "Unassigned" folder in the database
+      const existingUnassignedFolder = folders.find(f => 
+        f.name.toLowerCase() === 'unassigned'
+      );
+
+      // Only add virtual unassigned folder if no real one exists
+      if (!existingUnassignedFolder) {
+        organized['unassigned'] = {
+          folder: { 
+            id: 'unassigned', 
+            name: 'Unassigned', 
+            icon: '📦', 
+            color: '#6c757d',
+            description: 'Products not assigned to any folder'
+          },
+          products: []
+        };
+      }
+
+      // Organize products
+      products.forEach(product => {
+        if (product.folderId && organized[product.folderId]) {
+          organized[product.folderId].products.push(product);
+        } else if (existingUnassignedFolder) {
+          // If there's a real Unassigned folder, put unassigned products there
+          if (!organized[existingUnassignedFolder.id]) {
+            organized[existingUnassignedFolder.id] = {
+              folder: existingUnassignedFolder,
+              products: []
+            };
+          }
+          organized[existingUnassignedFolder.id].products.push(product);
+        } else {
+          // Otherwise use the virtual unassigned folder
+          organized['unassigned'].products.push(product);
+        }
+      });
+
+      return organized;
+    } catch (error) {
+      console.error('Error getting organized products:', error);
+      throw error;
+    }
+  }
+
+  // Sync product folders after folder changes
+  static async syncProductFolders() {
+    try {
+      const products = await Product.find({ 
+        isActive: true, 
+        folderId: { $ne: null } 
+      });
+      
+      const updates = [];
+
+      for (const product of products) {
+        try {
+          const folder = await FolderService.getFolderById(product.folderId);
+          
+          if (!folder) {
+            // Folder was deleted, unassign product
+            await product.updateFolder(null, null);
+            updates.push({
+              productId: product._id,
+              action: 'unassigned',
+              reason: 'folder_deleted'
+            });
+          } else if (folder.name !== product.folderName) {
+            // Folder name changed, update product
+            await product.updateFolder(product.folderId, folder.name);
+            updates.push({
+              productId: product._id,
+              action: 'updated',
+              oldFolderName: product.folderName,
+              newFolderName: folder.name
+            });
+          }
+        } catch (error) {
+          console.error(`Error syncing product ${product._id}:`, error);
+          updates.push({
+            productId: product._id,
+            action: 'error',
+            error: error.message
+          });
+        }
+      }
+
+      return updates;
+    } catch (error) {
+      console.error('Error syncing product folders:', error);
       throw error;
     }
   }
